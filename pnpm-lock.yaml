@@ -1,11 +1,13 @@
 lockfileVersion: 5.4
 
 specifiers:
+  '@types/lodash': ^4.14.184
   '@types/react': ^18.0.17
   '@types/react-dom': ^18.0.6
   '@types/three': ^0.144.0
   '@vitejs/plugin-react': ^2.0.1
   '@xstate/react': ^3.0.1
+  lodash: ^4.17.21
   react: ^18.2.0
   react-dom: ^18.2.0
   rxjs: ^7.5.6
@@ -16,6 +18,7 @@ specifiers:
 
 dependencies:
   '@xstate/react': 3.0.1_rq32lkiy6e3qvfqnk7z2r4e3pe
+  lodash: 4.17.21
   react: 18.2.0
   react-dom: 18.2.0_react@18.2.0
   rxjs: 7.5.6
@@ -23,6 +26,7 @@ dependencies:
   xstate: 4.33.5
 
 devDependencies:
+  '@types/lodash': 4.14.184
   '@types/react': 18.0.18
   '@types/react-dom': 18.0.6
   '@types/three': 0.144.0
@@ -344,6 +348,10 @@ packages:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.0
       '@jridgewell/sourcemap-codec': 1.4.14
+    dev: true
+
+  /@types/lodash/4.14.184:
+    resolution: {integrity: sha512-RoZphVtHbxPZizt4IcILciSWiC6dcn+eZ8oX9IWEYfDMcocdd42f7NPI6fQj+6zI8y4E0L7gu2pcZKLGTRaV9Q==}
     dev: true
 
   /@types/prop-types/15.7.5:
@@ -752,6 +760,10 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
     dev: true
+
+  /lodash/4.17.21:
+    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
+    dev: false
 
   /loose-envify/1.4.0:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
