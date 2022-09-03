@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import viewer from "../three/Viewer";
+import viewer from "../../three/Viewer";
 
 export const useViewer = () => {
   const divRef = useRef<HTMLDivElement>(null);
