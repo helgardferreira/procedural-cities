@@ -1,4 +1,4 @@
-import { useViewer } from "./hooks";
+import { useViewer } from "./utils/hooks";
 
 function App() {
   const containerRef = useViewer();

@@ -1,5 +1,10 @@
 import { Vector2, Vector3, Matrix4, OrthographicCamera } from "three";
 import { fromEvent, mergeMap, Subscription, takeUntil } from "rxjs";
+import {
+  TopDownControlsInterpreter,
+  topDownControlsMachineCreator,
+} from "./machine";
+import { interpret } from "xstate";
 
 export class TopDownControls {
   private subscriptions: Subscription[] = [];
@@ -13,6 +18,7 @@ export class TopDownControls {
   private scale = 1;
   private EPS = 0.000001;
   private zoomChanged = false;
+  private stateMachine: TopDownControlsInterpreter;
 
   private position0: Vector3;
   private zoom0: number;
@@ -29,6 +35,9 @@ export class TopDownControls {
     this.addEvents();
     this.position0 = this.camera.position.clone();
     this.zoom0 = this.camera.zoom;
+
+    this.stateMachine = interpret(topDownControlsMachineCreator(this));
+    this.stateMachine.start();
   }
 
   private addEvents = () => {
@@ -51,23 +60,25 @@ export class TopDownControls {
     );
 
     this.subscriptions.push(
-      contextMenu$.subscribe(this.handleContextMenu),
-      pointerDown$.subscribe(this.handlePointerDown),
-      move$.subscribe(this.handlePointerMove),
-      pointerUp$.subscribe(this.handlePointerUp),
-      wheel$.subscribe(this.handleMouseWheel)
+      contextMenu$.subscribe((e) => e.preventDefault()),
+      move$.subscribe((event) => {
+        this.stateMachine.send({ type: "PAN_MOVE", data: event });
+      }),
+      pointerUp$.subscribe(() => this.stateMachine.send("PAN_END")),
+      wheel$.subscribe((event) =>
+        this.stateMachine.send({
+          type: "DOLLY_MOVE",
+          data: event,
+        })
+      )
     );
   };
 
-  private handleContextMenu = (event: Event) => {
-    event.preventDefault();
-  };
-
-  private handlePointerDown = (event: PointerEvent) => {
+  public handlePointerDown = (event: PointerEvent) => {
     this.panStart.set(event.clientX, event.clientY);
   };
 
-  private handlePointerMove = (event: PointerEvent) => {
+  public handlePointerMove = (event: PointerEvent) => {
     this.panEnd.set(event.clientX, event.clientY);
 
     this.panDelta
@@ -81,11 +92,11 @@ export class TopDownControls {
     this.update();
   };
 
-  private handlePointerUp = (event: PointerEvent) => {
+  public handlePointerUp = () => {
     this.panStart.set(0, 0);
   };
 
-  private handleMouseWheel = (event: WheelEvent) => {
+  public handleMouseWheel = (event: WheelEvent) => {
     if (event.deltaY < 0) {
       this.dollyIn(this.getZoomScale());
     } else if (event.deltaY > 0) {
