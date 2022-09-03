@@ -16,7 +16,7 @@ export interface Typegen0 {
   eventsCausingActions: {
     dolly: "DOLLY_MOVE";
     pan: "PAN_MOVE";
-    panEnd: "PAN_END" | "xstate.stop";
+    panEnd: "PAN_END" | "RESET" | "xstate.stop";
     panStart: "PAN_MOVE";
   };
   eventsCausingServices: {};

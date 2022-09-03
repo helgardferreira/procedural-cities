@@ -5,13 +5,14 @@ import { SimpleInterpreter } from "../../../utils/types";
 interface TopDownControlsMachineContext {}
 
 type TopDownControlsMachineEvent =
+  | { type: "RESET" }
   | { type: "PAN_END" }
   | { type: "PAN_MOVE"; data: PointerEvent }
   | { type: "DOLLY_MOVE"; data: WheelEvent };
 
-export const topDownControlsMachineCreator = (controls: TopDownControls) =>
-  /** @xstate-layout N4IgpgJg5mDOIC5QBcD2AHAIqg7gOwGFU9kAnVAG1gDp0BDPPASzymqYgrAGIAFAQQByAfQCyAeQBqAUUSh0qWE2RNickAA9EAJgDsu6gEYArADZtx4wAYALFfP6bAGhABPHQA5j1U790BmXV8PU11tGwBfCJc0LFxCYjJKGnpGFjY6AGMVADceAREJGXUFJRU1JE1EGxt-al0PQ3CrY10ATkNDQJd3BENTD2orYZb2q10rfw9-YyiYjGx8IhJyKloGZlY+IWFpQUwSxWVVPHUtBDCez29fUMDg0PC5kFjFhJXk6ghKCld07kw4gAMkCAJpiKSySqlY4VUDnS5uRDGbR1EaTYxtawdSLPPCoCBwdSveLLJJrVKbNgcLiHMonM6IQxtOomcw2Dxhfw1PT+K4IbQeKxGPyGMatQVtZ4kpaJVYpDbpahZXJgOmw06Vc42TrUYxs8LhZkeE387SmYXohyclEeaULUlyz6U9Lq8qa+HVDz8jw2IYjSXGGbM-r2uKyj5rb4UX5KlVMPJuhlanSovUNTptcKWDxtNr8oMGdGonH+PPaMNvMnyr4-P6sJNwqoIDn82ptf3DXQmMJ2FmzaIvB0R8nwaFHd2MgXOJF9QzUPOLpdL9pRKJAA */
-  createMachine(
+export function topDownControlsMachineCreator(this: TopDownControls) {
+  /** @xstate-layout N4IgpgJg5mDOIC5QBcD2AHAIqg7gOwGFU9kAnVAG1gDp0BDPPASzymqYgrAGIAFAQQByAfQCyAeQBqAUUSh0qWE2RNickAA9EAJgDsu6gEYArADZtABgvGAzAA59h7aYA0IAJ467x6qb+6rbRsAFhtbAE4AX0i3NCxcQmIyShp6RhY2OgBjFQA3HgERCRl1BSUVNSRNRGDQ6l07J2NdJ21gw1M7GzdPBA67aisrDottY1DGm2jYjGx8IhJyKloGZlY+IWFpQUxSxWVVPHUtBF1tHsQbNuoumzDDcPDTAJtdaZA4ucTFlJX09YAStIAMrSAAqe3Kh2OiDOFwQelMNzuIW0dnCxi6ulM70+CQWyWWEEoFHcGW4mHEABkqQBNMRSWRVMoHSqgE5wjyIYxBQZDXQ2KzBfQ2HHvPCoCBwdR4+ZJJapVYZdicMCQ1lHKonB42IxmILhGwdV7BVxchF2CxGPydbRBCym5642b4+W-NJrTI5Jj5dUVTXsmqGQzUYwmcyjMNnc7m5xWoZWUyGO4PNrO+Jyn7LD0ZP3QrU1OzwrrUR5lszC9qGOx2dNfAkK6jEiik5XZPJq5n7f0whG85qNCyPUyvOymU3w2wGBPhYJPYwL8LaOuurM0Zut1h5tnVBDBIvm0LhPmBBpPZNTGIfF2ZwnwLtQncnNrwpwnhMfqxvaKRIA */
+  return createMachine(
     {
       tsTypes: {} as import("./machine.typegen").Typegen0,
       schema: {
@@ -45,6 +46,9 @@ export const topDownControlsMachineCreator = (controls: TopDownControls) =>
             PAN_END: {
               target: ".idle",
             },
+            RESET: {
+              target: ".idle",
+            },
           },
         },
         dollying: {
@@ -64,21 +68,38 @@ export const topDownControlsMachineCreator = (controls: TopDownControls) =>
     },
     {
       actions: {
-        panStart: (context, event) => {
-          controls.handlePointerDown(event.data);
+        panStart: (context, { data }) => {
+          this.panStart.set(data.clientX, data.clientY);
         },
-        pan: (context, event) => {
-          controls.handlePointerMove(event.data);
+        pan: (context, { data }) => {
+          this.panEnd.set(data.clientX, data.clientY);
+
+          this.panDelta
+            .subVectors(this.panEnd, this.panStart)
+            .multiplyScalar(this.panSpeed);
+
+          this.pan(this.panDelta.x, this.panDelta.y);
+
+          this.panStart.copy(this.panEnd);
+
+          this.update();
         },
         panEnd: (context, event) => {
-          controls.handlePointerUp();
+          this.panStart.set(0, 0);
         },
-        dolly: (context, event) => {
-          controls.handleMouseWheel(event.data);
+        dolly: (context, { data }) => {
+          if (data.deltaY < 0) {
+            this.dollyIn(this.getZoomScale());
+          } else if (data.deltaY > 0) {
+            this.dollyOut(this.getZoomScale());
+          }
+
+          this.update();
         },
       },
     }
   );
+}
 
 export type TopDownControlsInterpreter = SimpleInterpreter<
   TopDownControlsMachineContext,

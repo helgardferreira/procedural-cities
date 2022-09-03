@@ -8,9 +8,9 @@ import { interpret } from "xstate";
 
 export class TopDownControls {
   private subscriptions: Subscription[] = [];
-  private panStart = new Vector2();
-  private panEnd = new Vector2();
-  private panDelta = new Vector2();
+  protected panStart = new Vector2();
+  protected panEnd = new Vector2();
+  protected panDelta = new Vector2();
   private panLeftV = new Vector3();
   private panUpV = new Vector3();
   private panOffset = new Vector3();
@@ -36,7 +36,7 @@ export class TopDownControls {
     this.position0 = this.camera.position.clone();
     this.zoom0 = this.camera.zoom;
 
-    this.stateMachine = interpret(topDownControlsMachineCreator(this));
+    this.stateMachine = interpret(topDownControlsMachineCreator.apply(this));
     this.stateMachine.start();
   }
 
@@ -74,39 +74,7 @@ export class TopDownControls {
     );
   };
 
-  public handlePointerDown = (event: PointerEvent) => {
-    this.panStart.set(event.clientX, event.clientY);
-  };
-
-  public handlePointerMove = (event: PointerEvent) => {
-    this.panEnd.set(event.clientX, event.clientY);
-
-    this.panDelta
-      .subVectors(this.panEnd, this.panStart)
-      .multiplyScalar(this.panSpeed);
-
-    this.pan(this.panDelta.x, this.panDelta.y);
-
-    this.panStart.copy(this.panEnd);
-
-    this.update();
-  };
-
-  public handlePointerUp = () => {
-    this.panStart.set(0, 0);
-  };
-
-  public handleMouseWheel = (event: WheelEvent) => {
-    if (event.deltaY < 0) {
-      this.dollyIn(this.getZoomScale());
-    } else if (event.deltaY > 0) {
-      this.dollyOut(this.getZoomScale());
-    }
-
-    this.update();
-  };
-
-  private dollyIn = (dollyScale: number) => {
+  protected dollyIn = (dollyScale: number) => {
     this.camera.zoom = Math.max(
       this.minZoom,
       Math.min(this.maxZoom, this.camera.zoom / dollyScale)
@@ -115,7 +83,7 @@ export class TopDownControls {
     this.zoomChanged = true;
   };
 
-  private dollyOut = (dollyScale: number) => {
+  protected dollyOut = (dollyScale: number) => {
     this.camera.zoom = Math.max(
       this.minZoom,
       Math.min(this.maxZoom, this.camera.zoom * dollyScale)
@@ -124,7 +92,7 @@ export class TopDownControls {
     this.zoomChanged = true;
   };
 
-  private pan = (deltaX: number, deltaY: number) => {
+  protected pan = (deltaX: number, deltaY: number) => {
     this.panLeft(
       (deltaX * (this.camera.right - this.camera.left)) /
         this.camera.zoom /
@@ -153,7 +121,7 @@ export class TopDownControls {
     this.panOffset.add(this.panUpV);
   };
 
-  private getZoomScale = () => {
+  protected getZoomScale = () => {
     return Math.pow(0.95, this.zoomSpeed);
   };
 
@@ -184,7 +152,7 @@ export class TopDownControls {
 
     this.update();
 
-    // this.stateMachine.send("RESET");
+    this.stateMachine.send("RESET");
   };
 
   public dispose = () => {
