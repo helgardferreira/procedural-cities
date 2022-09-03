@@ -68,10 +68,10 @@ export function topDownControlsMachineCreator(this: TopDownControls) {
     },
     {
       actions: {
-        panStart: (context, { data }) => {
+        panStart: (_, { data }) => {
           this.panStart.set(data.clientX, data.clientY);
         },
-        pan: (context, { data }) => {
+        pan: (_, { data }) => {
           this.panEnd.set(data.clientX, data.clientY);
 
           this.panDelta
@@ -84,10 +84,10 @@ export function topDownControlsMachineCreator(this: TopDownControls) {
 
           this.update();
         },
-        panEnd: (context, event) => {
+        panEnd: () => {
           this.panStart.set(0, 0);
         },
-        dolly: (context, { data }) => {
+        dolly: (_, { data }) => {
           if (data.deltaY < 0) {
             this.dollyIn(this.getZoomScale());
           } else if (data.deltaY > 0) {
