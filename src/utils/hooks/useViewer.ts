@@ -16,3 +16,13 @@ export const useViewer = () => {
 
   return divRef;
 };
+
+// HMR hack to get rid of annoying dat.gui element spam
+if (import.meta.hot) {
+  import.meta.hot.accept("../../three/Viewer", (data) => {
+    if (data) {
+      // document.body.removeChild(data.default.guiElement);
+      data.default.dispose();
+    }
+  });
+}
