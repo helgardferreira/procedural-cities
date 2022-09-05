@@ -2,10 +2,10 @@ import { fromEvent, Subscription } from "rxjs";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { TopDownControls } from "./controls/TopDownControls";
-import { createNoise4D } from "simplex-noise";
+import { createNoise3D, createNoise2D, createNoise4D } from "simplex-noise";
 import * as dat from "dat.gui";
 
-const noise4D = createNoise4D();
+const noise2D = createNoise2D();
 
 export class Viewer {
   private renderer: THREE.WebGLRenderer;
@@ -15,9 +15,11 @@ export class Viewer {
   private topDownControls: TopDownControls;
   // private camera: THREE.PerspectiveCamera;
   private ortho: THREE.OrthographicCamera;
-  private orthoSize = 15;
+  private orthoSize = 20;
   public debug = true;
   private gui?: dat.GUI;
+  private cameraOffsetScalar = 1000;
+  private planeGeometrySize = 1000;
 
   constructor() {
     this.renderer = new THREE.WebGLRenderer();
@@ -31,9 +33,9 @@ export class Viewer {
       this.orthoSize / 2,
       this.orthoSize / -2,
       0.1,
-      1000
+      10000
     );
-    this.ortho.position.set(40, 40, 40);
+    this.ortho.position.addScalar(this.cameraOffsetScalar);
     this.ortho.lookAt(0, 0, 0);
 
     // Create and attach controls
@@ -68,160 +70,115 @@ export class Viewer {
 
   private createObjects = async () => {
     const objects: THREE.Object3D[] = [];
-
     const gltfLoader = new GLTFLoader();
+    const houses: Map<string, THREE.Object3D> = new Map();
 
-    const oneStoryHouse = (
-      await gltfLoader.loadAsync(
+    const houseMeshUrls = [
+      ["oneStoryHouse", "1Story"],
+      ["oneStoryBHouse", "1StoryB"],
+      ["twoStoryHouse", "2Story"],
+      ["twoStoryBHouse", "2StoryB"],
+      ["threeStoryHouse", "3Story"],
+      ["threeStoryBHouse", "3StoryB"],
+      ["fourStoryHouse", "4Story"],
+      ["fourStoryBHouse", "4StoryB"],
+      ["sixStoryHouse", "6Story"],
+    ];
+
+    for (const [name, fileName] of houseMeshUrls) {
+      houses.set(
+        name,
         (
-          await import("./assets/models/1Story.glb")
-        ).default
-      )
-    ).scene;
+          await gltfLoader.loadAsync(
+            (
+              await import(`./assets/models/${fileName}.glb`)
+            ).default
+          )
+        ).scene
+      );
+    }
 
-    const oneStoryBHouse = (
-      await gltfLoader.loadAsync(
-        (
-          await import("./assets/models/1StoryB.glb")
-        ).default
-      )
-    ).scene;
+    // const size = new THREE.Box3().setFromObject(house).getSize(
+    //   new THREE.Vector3()
+    // ).toArray();
 
-    const twoStoryHouse = (
-      await gltfLoader.loadAsync(
-        (
-          await import("./assets/models/2Story.glb")
-        ).default
-      )
-    ).scene;
+    const numBlocks = 5;
+    const centerOffset = (numBlocks * 10) / 2;
 
-    const twoStoryBHouse = (
-      await gltfLoader.loadAsync(
-        (
-          await import("./assets/models/2StoryB.glb")
-        ).default
-      )
-    ).scene;
+    const currentPosition = this.ortho.position
+      .clone()
+      .subScalar(this.cameraOffsetScalar);
 
-    const threeStoryHouse = (
-      await gltfLoader.loadAsync(
-        (
-          await import("./assets/models/3Story.glb")
-        ).default
-      )
-    ).scene;
+    currentPosition.x -= centerOffset;
+    currentPosition.z -= centerOffset;
 
-    const threeStoryBHouse = (
-      await gltfLoader.loadAsync(
-        (
-          await import("./assets/models/3StoryB.glb")
-        ).default
-      )
-    ).scene;
+    for (let i = 0; i < numBlocks; i++) {
+      for (let j = 0; j < numBlocks; j++) {
+        const centerBlockPosition = currentPosition.clone();
+        centerBlockPosition.x += j * 13;
+        centerBlockPosition.z += i * 13;
 
-    const fourStoryHouse = (
-      await gltfLoader.loadAsync(
-        (
-          await import("./assets/models/4Story.glb")
-        ).default
-      )
-    ).scene;
+        const houseBlock = this.createHouseBlock(centerBlockPosition, houses);
+        objects.push(houseBlock);
+        // objects.push(new THREE.BoxHelper(houseBlock));
 
-    const fourStoryBHouse = (
-      await gltfLoader.loadAsync(
-        (
-          await import("./assets/models/4StoryB.glb")
-        ).default
-      )
-    ).scene;
+        // const houseBlockSize = new THREE.Box3()
+        //   .setFromObject(houseBlock)
+        //   .getSize(new THREE.Vector3())
+        //   .toArray();
+      }
+    }
 
-    const sixStoryHouse = (
-      await gltfLoader.loadAsync(
-        (
-          await import("./assets/models/6Story.glb")
-        ).default
-      )
-    ).scene;
+    return objects;
+  };
 
-    // const box = new THREE.Box3().setFromObject(oneStoryHouse);
-    // const size = box.getSize(new THREE.Vector3());
-    // console.log(size.toArray());
+  private createHouseBlock(
+    centerPosition: THREE.Vector3,
+    houses: Map<string, THREE.Object3D<THREE.Event>>
+  ) {
+    const houseBlock = new THREE.Group();
+    let count = 0;
 
     for (let i = 0; i < 3; i++) {
       for (let j = 0; j < 3; j++) {
         let house: THREE.Object3D;
-        const random = Math.random();
-        if (random < 1 / 9) {
-          house = oneStoryHouse.clone();
-        } else if (random >= 1 / 9 && random < 2 / 9) {
-          house = oneStoryBHouse.clone();
-        } else if (random >= 2 / 9 && random < 3 / 9) {
-          house = twoStoryHouse.clone();
-        } else if (random >= 3 / 9 && random < 4 / 9) {
-          house = twoStoryBHouse.clone();
-        } else if (random >= 4 / 9 && random < 5 / 9) {
-          house = threeStoryHouse.clone();
-        } else if (random >= 5 / 9 && random < 6 / 9) {
-          house = threeStoryBHouse.clone();
-        } else if (random >= 6 / 9 && random < 7 / 9) {
-          house = fourStoryHouse.clone();
-        } else if (random >= 7 / 9 && random < 8 / 9) {
-          house = fourStoryBHouse.clone();
+        const housePosition = new THREE.Vector3(
+          centerPosition.x + i * 3.3,
+          centerPosition.y,
+          centerPosition.z + j * 3.3
+        );
+        const noiseValue =
+          (noise2D(housePosition.x, housePosition.z) * 100 + 100) / 100 / 2;
+
+        if (noiseValue < 1 / 9) {
+          house = houses.get("oneStoryHouse")!.clone();
+        } else if (noiseValue >= 1 / 9 && noiseValue < 2 / 9) {
+          house = houses.get("oneStoryBHouse")!.clone();
+        } else if (noiseValue >= 2 / 9 && noiseValue < 3 / 9) {
+          house = houses.get("twoStoryHouse")!.clone();
+        } else if (noiseValue >= 3 / 9 && noiseValue < 4 / 9) {
+          house = houses.get("twoStoryBHouse")!.clone();
+        } else if (noiseValue >= 4 / 9 && noiseValue < 5 / 9) {
+          house = houses.get("threeStoryHouse")!.clone();
+        } else if (noiseValue >= 5 / 9 && noiseValue < 6 / 9) {
+          house = houses.get("threeStoryBHouse")!.clone();
+        } else if (noiseValue >= 6 / 9 && noiseValue < 7 / 9) {
+          house = houses.get("fourStoryHouse")!.clone();
+        } else if (noiseValue >= 7 / 9 && noiseValue < 8 / 9) {
+          house = houses.get("fourStoryBHouse")!.clone();
         } else {
-          house = sixStoryHouse.clone();
+          house = houses.get("sixStoryHouse")!.clone();
         }
 
-        house.position.set(i * 3.3, 0, j * 3.3);
-        objects.push(house);
-        // objects.push(new THREE.BoxHelper(house));
-      }
-    }
-
-    // objects.push(mesh);
-
-    /* const cubeMaterial = new THREE.MeshStandardMaterial();
-
-    const cubeHeight = 1;
-    const cubeWidth = 1;
-    const alleySize = 0.25;
-
-    const noiseMultiplier = 10;
-
-    let count = 0;
-
-    const position = new THREE.Vector2(0, 7);
-
-    for (let i = 0; i < 3; i++) {
-      for (let j = 0; j < 3; j++) {
-        // console.log(count);
-        const heightModifier = noise4D(
-          position.x * noiseMultiplier,
-          position.y * noiseMultiplier,
-          count * noiseMultiplier,
-          (count + position.x + position.y) * noiseMultiplier
-        ) + 1;
-
-        console.log(heightModifier);
-        const cube = new THREE.Mesh(
-          new THREE.BoxGeometry(
-            cubeWidth,
-            cubeHeight * heightModifier,
-            cubeWidth
-          ),
-          cubeMaterial
-        );
-        cube.position.set(
-          i * (cubeWidth + alleySize),
-          (cubeHeight * heightModifier) / 2,
-          j * (cubeWidth + alleySize)
-        );
-        objects.push(cube);
+        // house.position.set(i * 3.3, 0, j * 3.3);
+        house.position.copy(housePosition);
+        houseBlock.add(house);
+        // houseBlock.add(new THREE.BoxHelper(house));
         count += 1;
       }
-    } */
-
-    return objects;
-  };
+    }
+    return houseBlock;
+  }
 
   private createPlane = async () => {
     const textureLoader = new THREE.TextureLoader();
@@ -230,7 +187,7 @@ export class Viewer {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
       texture.encoding = THREE.sRGBEncoding;
-      texture.repeat.set(10000, 10000);
+      texture.repeat.set(this.planeGeometrySize, this.planeGeometrySize);
     };
 
     const floorBase = await textureLoader.loadAsync(
@@ -276,11 +233,11 @@ export class Viewer {
     });
 
     const plane = new THREE.Mesh(
-      new THREE.PlaneGeometry(10000, 10000),
+      new THREE.PlaneGeometry(this.planeGeometrySize, this.planeGeometrySize),
       planeMaterial
     );
     plane.rotation.x = -Math.PI / 2;
-    plane.position.y = 0;
+    plane.position.set(0, -0.02, 0);
     return plane;
   };
 
