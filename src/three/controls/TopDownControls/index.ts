@@ -5,7 +5,10 @@ import {
   topDownControlsMachineCreator,
 } from "./machine";
 import { interpret } from "xstate";
-import { Vector3$ } from "../../observables";
+// import { ProxiedVector3Prop } from "../../observables/ProxiedVector3Prop";
+// import { DeferredVector3 } from "../../observables/DeferredVector3";
+// import { DumbVector3 } from "../../observables/DumbVector3";
+import { ProxiedVector3 } from "../../observables/ProxiedVector3";
 
 export class TopDownControls {
   private subscriptions: Subscription[] = [];
@@ -27,7 +30,7 @@ export class TopDownControls {
   public maxZoom = Infinity;
   public zoomSpeed = 1.0;
   public panSpeed = 1.0;
-  public translate$: Vector3$;
+  public translate: ProxiedVector3;
 
   constructor(
     private camera: OrthographicCamera,
@@ -40,8 +43,9 @@ export class TopDownControls {
     this.stateMachine = interpret(topDownControlsMachineCreator.apply(this));
     this.stateMachine.start();
 
-    this.translate$ = new Vector3$(this.camera.position.clone());
-    this.translate$.subscribe((v) => this.camera.position.copy(v));
+    this.translate = new ProxiedVector3(this.camera.position.clone());
+    this.translate.$.subscribe((v) => this.camera.position.copy(v));
+    // this.translate$.subscribe(console.log);
   }
 
   private addEvents = () => {
@@ -130,15 +134,15 @@ export class TopDownControls {
   };
 
   public update = () => {
-    this.translate$.add(this.panOffset);
+    this.translate.add(this.panOffset);
 
     this.panOffset.set(0, 0, 0);
 
     if (
       this.zoomChanged ||
-      this.lastPosition.distanceToSquared(this.translate$) > this.EPS
+      this.lastPosition.distanceToSquared(this.translate) > this.EPS
     ) {
-      this.lastPosition.copy(this.translate$);
+      this.lastPosition.copy(this.translate);
       this.zoomChanged = false;
       return true;
     }
@@ -146,7 +150,7 @@ export class TopDownControls {
   };
 
   public reset = () => {
-    this.translate$.copy(this.position0);
+    this.translate.copy(this.position0);
     this.camera.zoom = this.zoom0;
 
     this.camera.updateProjectionMatrix();

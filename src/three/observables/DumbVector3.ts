@@ -13,7 +13,7 @@ import {
   Vector3Tuple,
 } from "three";
 
-export class Vector3$ extends BehaviorSubject<Vector3> implements Vector3 {
+export class DumbVector3 extends BehaviorSubject<Vector3> implements Vector3 {
   public isVector3: true = true;
 
   constructor(private _vector: Vector3 = new Vector3()) {
@@ -68,10 +68,6 @@ export class Vector3$ extends BehaviorSubject<Vector3> implements Vector3 {
     this._vector.setComponent(index, value);
     this.next(this._vector);
     return this;
-  }
-
-  getComponent(index: number): number {
-    return this._vector.getComponent(index);
   }
 
   copy(v: Vector3): this {
@@ -270,33 +266,6 @@ export class Vector3$ extends BehaviorSubject<Vector3> implements Vector3 {
     return this;
   }
 
-  dot(v: Vector3): number {
-    return this._vector.dot(v);
-  }
-
-  lengthSq(): number {
-    return this._vector.lengthSq();
-  }
-
-  length(): number {
-    return this._vector.length();
-  }
-
-  /**
-   * @deprecated Use {@link Vector3#manhattanLength .manhattanLength()} instead.
-   */
-  lengthManhattan(): number {
-    return this._vector.lengthManhattan();
-  }
-
-  manhattanLength(): number {
-    return this._vector.manhattanLength();
-  }
-
-  manhattanDistanceTo(v: Vector3): number {
-    return this._vector.manhattanDistanceTo(v);
-  }
-
   normalize(): this {
     this._vector.normalize();
     this.next(this._vector);
@@ -349,25 +318,6 @@ export class Vector3$ extends BehaviorSubject<Vector3> implements Vector3 {
     this._vector.reflect(vector);
     this.next(this._vector);
     return this;
-  }
-
-  angleTo(v: Vector3): number {
-    return this._vector.angleTo(v);
-  }
-
-  distanceTo(v: Vector3): number {
-    return this._vector.distanceTo(v);
-  }
-
-  distanceToSquared(v: Vector3): number {
-    return this._vector.distanceToSquared(v);
-  }
-
-  /**
-   * @deprecated Use {@link Vector3#manhattanDistanceTo .manhattanDistanceTo()} instead.
-   */
-  distanceToManhattan(v: Vector3): number {
-    return this._vector.distanceToManhattan(v);
   }
 
   setFromSpherical(s: Spherical): this {
@@ -424,10 +374,6 @@ export class Vector3$ extends BehaviorSubject<Vector3> implements Vector3 {
     return this;
   }
 
-  equals(v: Vector3): boolean {
-    return this._vector.equals(v);
-  }
-
   fromArray(
     array: number[] | ArrayLike<number>,
     offset?: number | undefined
@@ -435,22 +381,6 @@ export class Vector3$ extends BehaviorSubject<Vector3> implements Vector3 {
     this._vector.fromArray(array, offset);
     this.next(this._vector);
     return this;
-  }
-
-  toArray(array?: number[] | undefined, offset?: number | undefined): number[];
-  toArray(
-    array?: Vector3Tuple | undefined,
-    offset?: 0 | undefined
-  ): Vector3Tuple;
-  toArray(
-    array: ArrayLike<number>,
-    offset?: number | undefined
-  ): ArrayLike<number>;
-  toArray(
-    array?: unknown,
-    offset?: unknown
-  ): number[] | ArrayLike<number> | Vector3Tuple {
-    return this._vector.toArray(array as any, offset as any);
   }
 
   fromBufferAttribute(
@@ -476,5 +406,75 @@ export class Vector3$ extends BehaviorSubject<Vector3> implements Vector3 {
     yield this.x;
     yield this.y;
     yield this.z;
+  }
+
+  toArray(array?: number[] | undefined, offset?: number | undefined): number[];
+  toArray(
+    array?: Vector3Tuple | undefined,
+    offset?: 0 | undefined
+  ): Vector3Tuple;
+  toArray(
+    array: ArrayLike<number>,
+    offset?: number | undefined
+  ): ArrayLike<number>;
+  toArray(
+    array?: unknown,
+    offset?: unknown
+  ): number[] | ArrayLike<number> | Vector3Tuple {
+    return this._vector.toArray(array as any, offset as any);
+  }
+
+  equals(v: Vector3): boolean {
+    return this._vector.equals(v);
+  }
+
+  angleTo(v: Vector3): number {
+    return this._vector.angleTo(v);
+  }
+
+  distanceTo(v: Vector3): number {
+    return this._vector.distanceTo(v);
+  }
+
+  distanceToSquared(v: Vector3): number {
+    return this._vector.distanceToSquared(v);
+  }
+
+  /**
+   * @deprecated Use {@link Vector3#manhattanDistanceTo .manhattanDistanceTo()} instead.
+   */
+  distanceToManhattan(v: Vector3): number {
+    return this._vector.distanceToManhattan(v);
+  }
+
+  dot(v: Vector3): number {
+    return this._vector.dot(v);
+  }
+
+  lengthSq(): number {
+    return this._vector.lengthSq();
+  }
+
+  length(): number {
+    return this._vector.length();
+  }
+
+  /**
+   * @deprecated Use {@link Vector3#manhattanLength .manhattanLength()} instead.
+   */
+  lengthManhattan(): number {
+    return this._vector.lengthManhattan();
+  }
+
+  manhattanLength(): number {
+    return this._vector.manhattanLength();
+  }
+
+  manhattanDistanceTo(v: Vector3): number {
+    return this._vector.manhattanDistanceTo(v);
+  }
+
+  getComponent(index: number): number {
+    return this._vector.getComponent(index);
   }
 }
