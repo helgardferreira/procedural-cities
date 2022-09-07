@@ -5,10 +5,7 @@ import {
   topDownControlsMachineCreator,
 } from "./machine";
 import { interpret } from "xstate";
-// import { ProxiedVector3Prop } from "../../observables/ProxiedVector3Prop";
-// import { DeferredVector3 } from "../../observables/DeferredVector3";
-// import { DumbVector3 } from "../../observables/DumbVector3";
-import { ProxiedVector3 } from "../../observables/ProxiedVector3";
+import { ObservableVector3 } from "../../observables/ObservableVector3";
 
 export class TopDownControls {
   private subscriptions: Subscription[] = [];
@@ -30,7 +27,7 @@ export class TopDownControls {
   public maxZoom = Infinity;
   public zoomSpeed = 1.0;
   public panSpeed = 1.0;
-  public translate: ProxiedVector3;
+  public translate: ObservableVector3;
 
   constructor(
     private camera: OrthographicCamera,
@@ -43,7 +40,7 @@ export class TopDownControls {
     this.stateMachine = interpret(topDownControlsMachineCreator.apply(this));
     this.stateMachine.start();
 
-    this.translate = new ProxiedVector3(this.camera.position.clone());
+    this.translate = new ObservableVector3(this.camera.position.clone());
     this.translate.$.subscribe((v) => this.camera.position.copy(v));
     // this.translate$.subscribe(console.log);
   }

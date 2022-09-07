@@ -66,7 +66,7 @@ const _proxiedMethods: VectorMethod[] = [
   "randomDirection",
 ];
 
-export class ProxiedVector3 extends Vector3 {
+export class ObservableVector3 extends Vector3 {
   private _subject: BehaviorSubject<Vector3>;
 
   constructor(x?: Vector3);
