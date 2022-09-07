@@ -102,8 +102,8 @@ export class Viewer {
     //   new THREE.Vector3()
     // ).toArray();
 
-    const numBlocks = 5;
-    const centerOffset = (numBlocks * 10) / 2;
+    const cityWidth = 5;
+    const centerOffset = (cityWidth * 10) / 2;
 
     const currentPosition = this.ortho.position
       .clone()
@@ -111,12 +111,13 @@ export class Viewer {
 
     currentPosition.x -= centerOffset;
     currentPosition.z -= centerOffset;
+    const streetSize = 3;
 
-    for (let i = 0; i < numBlocks; i++) {
-      for (let j = 0; j < numBlocks; j++) {
+    for (let i = 0; i < cityWidth; i++) {
+      for (let j = 0; j < cityWidth; j++) {
         const centerBlockPosition = currentPosition.clone();
-        centerBlockPosition.x += j * 13;
-        centerBlockPosition.z += i * 13;
+        centerBlockPosition.x += i * (10 + streetSize);
+        centerBlockPosition.z += j * (10 + streetSize);
 
         const houseBlock = this.createHouseBlock(centerBlockPosition, houses);
         objects.push(houseBlock);
