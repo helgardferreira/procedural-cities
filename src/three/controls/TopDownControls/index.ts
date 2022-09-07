@@ -5,6 +5,7 @@ import {
   topDownControlsMachineCreator,
 } from "./machine";
 import { interpret } from "xstate";
+import { Vector3$ } from "../../observables";
 
 export class TopDownControls {
   private subscriptions: Subscription[] = [];
@@ -15,7 +16,6 @@ export class TopDownControls {
   private panUpV = new Vector3();
   private panOffset = new Vector3();
   private lastPosition = new Vector3();
-  private scale = 1;
   private EPS = 0.000001;
   private zoomChanged = false;
   private stateMachine: TopDownControlsInterpreter;
@@ -27,6 +27,7 @@ export class TopDownControls {
   public maxZoom = Infinity;
   public zoomSpeed = 1.0;
   public panSpeed = 1.0;
+  public translate$: Vector3$;
 
   constructor(
     private camera: OrthographicCamera,
@@ -38,6 +39,9 @@ export class TopDownControls {
 
     this.stateMachine = interpret(topDownControlsMachineCreator.apply(this));
     this.stateMachine.start();
+
+    this.translate$ = new Vector3$(this.camera.position.clone());
+    this.translate$.subscribe((v) => this.camera.position.copy(v));
   }
 
   private addEvents = () => {
@@ -126,18 +130,15 @@ export class TopDownControls {
   };
 
   public update = () => {
-    const position = this.camera.position;
+    this.translate$.add(this.panOffset);
 
-    position.add(this.panOffset);
-
-    this.scale = 1;
     this.panOffset.set(0, 0, 0);
 
     if (
       this.zoomChanged ||
-      this.lastPosition.distanceToSquared(this.camera.position) > this.EPS
+      this.lastPosition.distanceToSquared(this.translate$) > this.EPS
     ) {
-      this.lastPosition.copy(this.camera.position);
+      this.lastPosition.copy(this.translate$);
       this.zoomChanged = false;
       return true;
     }
@@ -145,7 +146,7 @@ export class TopDownControls {
   };
 
   public reset = () => {
-    this.camera.position.copy(this.position0);
+    this.translate$.copy(this.position0);
     this.camera.zoom = this.zoom0;
 
     this.camera.updateProjectionMatrix();
