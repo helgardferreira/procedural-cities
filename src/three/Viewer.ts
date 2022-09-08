@@ -20,7 +20,9 @@ export class Viewer {
   public debug = true;
   private gui?: dat.GUI;
   private cameraOffsetScalar = 1000;
-  private planeGeometrySize = 100;
+  private numHouseBlocks = 5;
+  private houseBlockSize = 10;
+  private planeGeometrySize: number;
 
   constructor() {
     this.renderer = new THREE.WebGLRenderer();
@@ -44,6 +46,8 @@ export class Viewer {
 
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    this.planeGeometrySize = this.numHouseBlocks * this.houseBlockSize;
 
     // debug GUI
     if (this.debug) {
@@ -99,22 +103,15 @@ export class Viewer {
       );
     }
 
-    // const size = new THREE.Box3().setFromObject(house).getSize(
-    //   new THREE.Vector3()
-    // ).toArray();
-
     // const cityPadding = 5;
     // const houseMargin = 1;
-    const numHouses = 10;
 
     const cityNode = Yoga.Node.create();
-    cityNode.setWidth(this.planeGeometrySize);
-    cityNode.setHeight(this.planeGeometrySize);
+    cityNode.setWidth(this.planeGeometrySize * 1_000_000);
+    cityNode.setHeight(this.planeGeometrySize * 1_000_000);
     // cityNode.setPadding(Yoga.EDGE_ALL, cityPadding);
-    // cityNode.setJustifyContent(Yoga.JUSTIFY_SPACE_BETWEEN);
-    cityNode.setJustifyContent(Yoga.JUSTIFY_FLEX_START);
-    // cityNode.setAlignContent(Yoga.ALIGN_CENTER);
-    cityNode.setAlignContent(Yoga.ALIGN_FLEX_START);
+    cityNode.setJustifyContent(Yoga.JUSTIFY_SPACE_BETWEEN);
+    cityNode.setAlignContent(Yoga.ALIGN_SPACE_BETWEEN);
     cityNode.setFlexDirection(Yoga.FLEX_DIRECTION_ROW);
     cityNode.setFlexWrap(Yoga.WRAP_WRAP);
 
@@ -125,17 +122,35 @@ export class Viewer {
     currentPosition.x -= this.planeGeometrySize / 2;
     currentPosition.z -= this.planeGeometrySize / 2;
 
-    const houseNodes: YogaNode[] = [];
+    const houseBlocks: { node: YogaNode; block: THREE.Group }[] = [];
 
-    for (let i = 0; i < numHouses; i++) {
-      const houseNode = Yoga.Node.create();
-      // TODO: calculate actual house block dimensions here
-      houseNode.setWidth(9.2);
-      houseNode.setHeight(9.2);
-      // houseNode.setMargin(Yoga.EDGE_ALL, houseMargin);
-      cityNode.insertChild(houseNode, i);
+    for (let i = 0; i < this.numHouseBlocks; i++) {
+      for (let j = 0; j < this.numHouseBlocks; j++) {
+        const houseBlockNode = Yoga.Node.create();
+        houseBlockNode.setWidth(this.houseBlockSize * 1_000_000);
+        houseBlockNode.setHeight(this.houseBlockSize * 1_000_000);
+        // houseNode.setMargin(Yoga.EDGE_ALL, houseMargin);
+        houseBlockNode.setJustifyContent(Yoga.JUSTIFY_SPACE_BETWEEN);
+        houseBlockNode.setAlignContent(Yoga.ALIGN_SPACE_BETWEEN);
+        houseBlockNode.setFlexDirection(Yoga.FLEX_DIRECTION_ROW);
+        houseBlockNode.setFlexWrap(Yoga.WRAP_WRAP);
+        cityNode.insertChild(houseBlockNode, i);
 
-      houseNodes.push(houseNode);
+        const initialPosition = currentPosition
+          .clone()
+          .add(new THREE.Vector3(i, 0, j));
+
+        const houseBlock = this.createHouseBlock(
+          initialPosition,
+          houses,
+          houseBlockNode
+        );
+
+        houseBlocks.push({
+          node: houseBlockNode,
+          block: houseBlock,
+        });
+      }
     }
 
     cityNode.calculateLayout(
@@ -144,23 +159,18 @@ export class Viewer {
       Yoga.DIRECTION_LTR
     );
 
-    houseNodes.forEach((node, index) => {
+    houseBlocks.forEach(({ node, block }, index) => {
       const { left, top } = node.getComputedLayout();
       const position = currentPosition
         .clone()
-        .add(new THREE.Vector3(left, 0, top));
+        .add(new THREE.Vector3(left / 1_000_000, 0, top / 1_000_000));
 
-      const houseBlock = this.createHouseBlock(position, houses);
+      block.position.copy(position);
+      block.position.x += 1.2;
+      block.position.z += 1.2;
 
-      // const houseBlockSize = new THREE.Box3()
-      //   .setFromObject(houseBlock)
-      //   .getSize(new THREE.Vector3());
-      // TODO: try using center house instead of whole block for offset
-      // houseBlock.position.x += houseBlockSize.x / 2;
-      // houseBlock.position.z += houseBlockSize.z / 2;
-
-      objects.push(houseBlock);
-      objects.push(new THREE.BoxHelper(houseBlock));
+      objects.push(block);
+      objects.push(new THREE.BoxHelper(block));
     });
 
     return objects;
@@ -168,61 +178,77 @@ export class Viewer {
 
   private createHouseBlock(
     centerPosition: THREE.Vector3,
-    houses: Map<string, THREE.Object3D<THREE.Event>>
+    houseMeshes: Map<string, THREE.Object3D<THREE.Event>>,
+    houseBlockNode: YogaNode
   ) {
     const houseBlock = new THREE.Group();
-    houseBlock.position.copy(centerPosition);
     let count = 0;
 
+    const houses: {
+      node: YogaNode;
+      house: THREE.Object3D<THREE.Event>;
+    }[] = [];
     for (let i = 0; i < 3; i++) {
       for (let j = 0; j < 3; j++) {
         let house: THREE.Object3D;
-        const housePosition = new THREE.Vector3(i * 3.3, 0, j * 3.3);
+
         const noiseValue =
-          (noise2D(
-            centerPosition.x + housePosition.x,
-            centerPosition.z + housePosition.z
-          ) *
-            100 +
-            100) /
+          (noise2D(centerPosition.x + i, centerPosition.z + j) * 100 + 100) /
           100 /
           2;
 
         if (noiseValue < 1 / 9) {
-          house = houses.get("oneStoryHouse")!.clone();
+          house = houseMeshes.get("oneStoryHouse")!.clone();
         } else if (noiseValue >= 1 / 9 && noiseValue < 2 / 9) {
-          house = houses.get("oneStoryBHouse")!.clone();
+          house = houseMeshes.get("oneStoryBHouse")!.clone();
         } else if (noiseValue >= 2 / 9 && noiseValue < 3 / 9) {
-          house = houses.get("twoStoryHouse")!.clone();
+          house = houseMeshes.get("twoStoryHouse")!.clone();
         } else if (noiseValue >= 3 / 9 && noiseValue < 4 / 9) {
-          house = houses.get("twoStoryBHouse")!.clone();
+          house = houseMeshes.get("twoStoryBHouse")!.clone();
         } else if (noiseValue >= 4 / 9 && noiseValue < 5 / 9) {
-          house = houses.get("threeStoryHouse")!.clone();
+          house = houseMeshes.get("threeStoryHouse")!.clone();
         } else if (noiseValue >= 5 / 9 && noiseValue < 6 / 9) {
-          house = houses.get("threeStoryBHouse")!.clone();
+          house = houseMeshes.get("threeStoryBHouse")!.clone();
         } else if (noiseValue >= 6 / 9 && noiseValue < 7 / 9) {
-          house = houses.get("fourStoryHouse")!.clone();
+          house = houseMeshes.get("fourStoryHouse")!.clone();
         } else if (noiseValue >= 7 / 9 && noiseValue < 8 / 9) {
-          house = houses.get("fourStoryBHouse")!.clone();
+          house = houseMeshes.get("fourStoryBHouse")!.clone();
         } else {
-          house = houses.get("sixStoryHouse")!.clone();
+          house = houseMeshes.get("sixStoryHouse")!.clone();
         }
 
-        // house.position.set(i * 3.3, 0, j * 3.3);
-        houseBlock.add(house);
-        // houseBlock.add(new THREE.BoxHelper(house));
-        house.position.copy(housePosition);
-        if (count === 0) {
-          const houseSize = new THREE.Box3()
-            .setFromObject(house)
-            .getSize(new THREE.Vector3());
-          houseBlock.position.x += houseSize.x / 2;
-          houseBlock.position.z += houseSize.z / 2;
+        const houseSize = new THREE.Box3()
+          .setFromObject(house)
+          .getSize(new THREE.Vector3());
+
+        const houseNode = Yoga.Node.create();
+        houseNode.setWidth(houseSize.x * 1_000_000);
+        houseNode.setHeight(houseSize.z * 1_000_000);
+        if ((count + 2) % 3 === 0) {
+          houseNode.setMargin(Yoga.EDGE_LEFT, 1 * 1_000_000);
+          houseNode.setMargin(Yoga.EDGE_RIGHT, 1 * 1_000_000);
         }
+        houseBlockNode.insertChild(houseNode, count);
+
+        houses.push({
+          node: houseNode,
+          house,
+        });
+        houseBlock.add(house);
 
         count += 1;
       }
     }
+
+    houseBlockNode.calculateLayout(10, 10, Yoga.DIRECTION_LTR);
+
+    houses.forEach(({ node, house }) => {
+      const { left, top } = node.getComputedLayout();
+      house.position.x = left / 1_000_000;
+      house.position.z = top / 1_000_000;
+
+      // houseBlock.add(new THREE.BoxHelper(house));
+    });
 
     return houseBlock;
   }
