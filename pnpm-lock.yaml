@@ -1,6 +1,7 @@
 lockfileVersion: 5.4
 
 specifiers:
+  '@react-pdf/yoga': ^3.0.0
   '@types/dat.gui': ^0.7.7
   '@types/lodash': ^4.14.184
   '@types/react': ^18.0.17
@@ -20,6 +21,7 @@ specifiers:
   xstate: ^4.33.5
 
 dependencies:
+  '@react-pdf/yoga': 3.0.0
   '@xstate/react': 3.0.1_rq32lkiy6e3qvfqnk7z2r4e3pe
   dat.gui: 0.7.9
   lodash: 4.17.21
@@ -356,6 +358,12 @@ packages:
       '@jridgewell/sourcemap-codec': 1.4.14
     dev: true
 
+  /@react-pdf/yoga/3.0.0:
+    resolution: {integrity: sha512-vGgvriAIH1Tk1RO6xtQeHc3iPM1pAz+Vz1WZ9wRlsXsuBAk7ZhtbHxrf9F7O3sFPORcMryihdtqpBeq2ZzMtNQ==}
+    dependencies:
+      '@types/yoga-layout': 1.9.4
+    dev: false
+
   /@types/dat.gui/0.7.7:
     resolution: {integrity: sha512-CxLCme0He5Jk3uQwfO/fGZMyNhb/ypANzqX0yU9lviBQMlen5SOvQTBQ/Cd9x5mFlUAK5Tk8RgvTyLj1nYkz+w==}
     dev: true
@@ -392,6 +400,10 @@ packages:
   /@types/webxr/0.5.0:
     resolution: {integrity: sha512-IUMDPSXnYIbEO2IereEFcgcqfDREOgmbGqtrMpVPpACTU6pltYLwHgVkrnYv0XhWEcjio9sYEfIEzgn3c7nDqA==}
     dev: true
+
+  /@types/yoga-layout/1.9.4:
+    resolution: {integrity: sha512-RRHc1+8Hc5mf/2lZKnom6kCnqcNS07s8keahniWTOva0KELF6RgDJmaEcvGEKUUJgN4UgessmEsWuidaOycIOw==}
+    dev: false
 
   /@vitejs/plugin-react/2.0.1_vite@3.0.9:
     resolution: {integrity: sha512-uINzNHmjrbunlFtyVkST6lY1ewSfz/XwLufG0PIqvLGnpk2nOIOa/1CACTDNcKi1/RwaCzJLmsXwm1NsUVV/NA==}

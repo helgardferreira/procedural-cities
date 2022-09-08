@@ -1,8 +1,9 @@
-import { fromEvent, Subscription } from "rxjs";
+import { distinctUntilChanged, fromEvent, map, Subscription } from "rxjs";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { TopDownControls } from "./controls/TopDownControls";
-import { createNoise3D, createNoise2D, createNoise4D } from "simplex-noise";
+import { createNoise2D } from "simplex-noise";
+import Yoga, { YogaNode } from "@react-pdf/yoga";
 import * as dat from "dat.gui";
 
 const noise2D = createNoise2D();
@@ -19,7 +20,7 @@ export class Viewer {
   public debug = true;
   private gui?: dat.GUI;
   private cameraOffsetScalar = 1000;
-  private planeGeometrySize = 1000;
+  private planeGeometrySize = 100;
 
   constructor() {
     this.renderer = new THREE.WebGLRenderer();
@@ -102,33 +103,65 @@ export class Viewer {
     //   new THREE.Vector3()
     // ).toArray();
 
-    const cityWidth = 5;
-    const centerOffset = (cityWidth * 10) / 2;
+    // const cityPadding = 5;
+    // const houseMargin = 1;
+    const numHouses = 10;
+
+    const cityNode = Yoga.Node.create();
+    cityNode.setWidth(this.planeGeometrySize);
+    cityNode.setHeight(this.planeGeometrySize);
+    // cityNode.setPadding(Yoga.EDGE_ALL, cityPadding);
+    // cityNode.setJustifyContent(Yoga.JUSTIFY_SPACE_BETWEEN);
+    cityNode.setJustifyContent(Yoga.JUSTIFY_FLEX_START);
+    // cityNode.setAlignContent(Yoga.ALIGN_CENTER);
+    cityNode.setAlignContent(Yoga.ALIGN_FLEX_START);
+    cityNode.setFlexDirection(Yoga.FLEX_DIRECTION_ROW);
+    cityNode.setFlexWrap(Yoga.WRAP_WRAP);
 
     const currentPosition = this.ortho.position
       .clone()
       .subScalar(this.cameraOffsetScalar);
 
-    currentPosition.x -= centerOffset;
-    currentPosition.z -= centerOffset;
-    const streetSize = 3;
+    currentPosition.x -= this.planeGeometrySize / 2;
+    currentPosition.z -= this.planeGeometrySize / 2;
 
-    for (let i = 0; i < cityWidth; i++) {
-      for (let j = 0; j < cityWidth; j++) {
-        const centerBlockPosition = currentPosition.clone();
-        centerBlockPosition.x += i * (10 + streetSize);
-        centerBlockPosition.z += j * (10 + streetSize);
+    const houseNodes: YogaNode[] = [];
 
-        const houseBlock = this.createHouseBlock(centerBlockPosition, houses);
-        objects.push(houseBlock);
-        // objects.push(new THREE.BoxHelper(houseBlock));
+    for (let i = 0; i < numHouses; i++) {
+      const houseNode = Yoga.Node.create();
+      // TODO: calculate actual house block dimensions here
+      houseNode.setWidth(9.2);
+      houseNode.setHeight(9.2);
+      // houseNode.setMargin(Yoga.EDGE_ALL, houseMargin);
+      cityNode.insertChild(houseNode, i);
 
-        // const houseBlockSize = new THREE.Box3()
-        //   .setFromObject(houseBlock)
-        //   .getSize(new THREE.Vector3())
-        //   .toArray();
-      }
+      houseNodes.push(houseNode);
     }
+
+    cityNode.calculateLayout(
+      this.planeGeometrySize,
+      this.planeGeometrySize,
+      Yoga.DIRECTION_LTR
+    );
+
+    houseNodes.forEach((node, index) => {
+      const { left, top } = node.getComputedLayout();
+      const position = currentPosition
+        .clone()
+        .add(new THREE.Vector3(left, 0, top));
+
+      const houseBlock = this.createHouseBlock(position, houses);
+
+      // const houseBlockSize = new THREE.Box3()
+      //   .setFromObject(houseBlock)
+      //   .getSize(new THREE.Vector3());
+      // TODO: try using center house instead of whole block for offset
+      // houseBlock.position.x += houseBlockSize.x / 2;
+      // houseBlock.position.z += houseBlockSize.z / 2;
+
+      objects.push(houseBlock);
+      objects.push(new THREE.BoxHelper(houseBlock));
+    });
 
     return objects;
   };
@@ -138,18 +171,22 @@ export class Viewer {
     houses: Map<string, THREE.Object3D<THREE.Event>>
   ) {
     const houseBlock = new THREE.Group();
+    houseBlock.position.copy(centerPosition);
     let count = 0;
 
     for (let i = 0; i < 3; i++) {
       for (let j = 0; j < 3; j++) {
         let house: THREE.Object3D;
-        const housePosition = new THREE.Vector3(
-          centerPosition.x + i * 3.3,
-          centerPosition.y,
-          centerPosition.z + j * 3.3
-        );
+        const housePosition = new THREE.Vector3(i * 3.3, 0, j * 3.3);
         const noiseValue =
-          (noise2D(housePosition.x, housePosition.z) * 100 + 100) / 100 / 2;
+          (noise2D(
+            centerPosition.x + housePosition.x,
+            centerPosition.z + housePosition.z
+          ) *
+            100 +
+            100) /
+          100 /
+          2;
 
         if (noiseValue < 1 / 9) {
           house = houses.get("oneStoryHouse")!.clone();
@@ -172,12 +209,21 @@ export class Viewer {
         }
 
         // house.position.set(i * 3.3, 0, j * 3.3);
-        house.position.copy(housePosition);
         houseBlock.add(house);
         // houseBlock.add(new THREE.BoxHelper(house));
+        house.position.copy(housePosition);
+        if (count === 0) {
+          const houseSize = new THREE.Box3()
+            .setFromObject(house)
+            .getSize(new THREE.Vector3());
+          houseBlock.position.x += houseSize.x / 2;
+          houseBlock.position.z += houseSize.z / 2;
+        }
+
         count += 1;
       }
     }
+
     return houseBlock;
   }
 
@@ -313,6 +359,16 @@ export class Viewer {
 
   private addEvents = () => {
     const resize$ = fromEvent(window, "resize");
+    this.topDownControls.translate.$.pipe(
+      map((vector) => ({
+        x: vector.x,
+        y: vector.y,
+        z: vector.z,
+      })),
+      distinctUntilChanged((prev, curr) => {
+        return prev.x === curr.x && prev.y === curr.y && prev.z === curr.z;
+      })
+    ).subscribe();
 
     this.subscriptions.push(resize$.subscribe(this.resizeCanvas));
   };
