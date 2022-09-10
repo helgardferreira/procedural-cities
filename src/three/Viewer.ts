@@ -20,8 +20,14 @@ export class Viewer {
   public debug = true;
   private gui?: dat.GUI;
   private cameraOffsetScalar = 1000;
+  private houseMeshes: Map<string, THREE.Object3D> = new Map();
+  private floorTextures: Map<string, THREE.Texture> = new Map();
+
   private numHouseBlocks = 5;
   private houseBlockSize = 10;
+  private houseMargin = 1;
+  // private cityPadding = 5;
+
   private planeGeometrySize: number;
 
   constructor() {
@@ -47,7 +53,9 @@ export class Viewer {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    this.planeGeometrySize = this.numHouseBlocks * this.houseBlockSize;
+    this.planeGeometrySize =
+      this.numHouseBlocks * this.houseBlockSize +
+      this.numHouseBlocks * this.houseMargin * 2;
 
     // debug GUI
     if (this.debug) {
@@ -73,10 +81,8 @@ export class Viewer {
     return this.gui?.domElement;
   }
 
-  private createObjects = async () => {
-    const objects: THREE.Object3D[] = [];
+  private loadMeshes = async () => {
     const gltfLoader = new GLTFLoader();
-    const houses: Map<string, THREE.Object3D> = new Map();
 
     const houseMeshUrls = [
       ["oneStoryHouse", "1Story"],
@@ -91,7 +97,7 @@ export class Viewer {
     ];
 
     for (const [name, fileName] of houseMeshUrls) {
-      houses.set(
+      this.houseMeshes.set(
         name,
         (
           await gltfLoader.loadAsync(
@@ -102,25 +108,29 @@ export class Viewer {
         ).scene
       );
     }
+  };
 
-    // const cityPadding = 5;
-    // const houseMargin = 1;
+  private createObjects = (currentPosition: THREE.Vector3) => {
+    const city = new THREE.Group();
+    const objects: THREE.Object3D[] = [];
+
+    const plane = this.createPlane(currentPosition);
+    objects.push(plane);
+
+    const centerPosition = currentPosition.clone();
+    centerPosition.x -= this.planeGeometrySize / 2;
+    centerPosition.z -= this.planeGeometrySize / 2;
 
     const cityNode = Yoga.Node.create();
     cityNode.setWidth(this.planeGeometrySize * 1_000_000);
     cityNode.setHeight(this.planeGeometrySize * 1_000_000);
     // cityNode.setPadding(Yoga.EDGE_ALL, cityPadding);
     cityNode.setJustifyContent(Yoga.JUSTIFY_SPACE_BETWEEN);
+    // cityNode.setJustifyContent(Yoga.JUSTIFY_FLEX_START);
     cityNode.setAlignContent(Yoga.ALIGN_SPACE_BETWEEN);
+    // cityNode.setAlignContent(Yoga.ALIGN_FLEX_START);
     cityNode.setFlexDirection(Yoga.FLEX_DIRECTION_ROW);
     cityNode.setFlexWrap(Yoga.WRAP_WRAP);
-
-    const currentPosition = this.ortho.position
-      .clone()
-      .subScalar(this.cameraOffsetScalar);
-
-    currentPosition.x -= this.planeGeometrySize / 2;
-    currentPosition.z -= this.planeGeometrySize / 2;
 
     const houseBlocks: { node: YogaNode; block: THREE.Group }[] = [];
 
@@ -129,20 +139,21 @@ export class Viewer {
         const houseBlockNode = Yoga.Node.create();
         houseBlockNode.setWidth(this.houseBlockSize * 1_000_000);
         houseBlockNode.setHeight(this.houseBlockSize * 1_000_000);
-        // houseNode.setMargin(Yoga.EDGE_ALL, houseMargin);
+        houseBlockNode.setMargin(Yoga.EDGE_ALL, this.houseMargin * 1_000_000);
         houseBlockNode.setJustifyContent(Yoga.JUSTIFY_SPACE_BETWEEN);
+        // houseBlockNode.setJustifyContent(Yoga.JUSTIFY_FLEX_START);
         houseBlockNode.setAlignContent(Yoga.ALIGN_SPACE_BETWEEN);
+        // houseBlockNode.setAlignContent(Yoga.ALIGN_FLEX_START);
         houseBlockNode.setFlexDirection(Yoga.FLEX_DIRECTION_ROW);
         houseBlockNode.setFlexWrap(Yoga.WRAP_WRAP);
         cityNode.insertChild(houseBlockNode, i);
 
-        const initialPosition = currentPosition
+        const initialPosition = centerPosition
           .clone()
           .add(new THREE.Vector3(i, 0, j));
 
         const houseBlock = this.createHouseBlock(
           initialPosition,
-          houses,
           houseBlockNode
         );
 
@@ -159,9 +170,9 @@ export class Viewer {
       Yoga.DIRECTION_LTR
     );
 
-    houseBlocks.forEach(({ node, block }, index) => {
+    houseBlocks.forEach(({ node, block }) => {
       const { left, top } = node.getComputedLayout();
-      const position = currentPosition
+      const position = centerPosition
         .clone()
         .add(new THREE.Vector3(left / 1_000_000, 0, top / 1_000_000));
 
@@ -169,16 +180,16 @@ export class Viewer {
       block.position.x += 1.2;
       block.position.z += 1.2;
 
-      objects.push(block);
-      objects.push(new THREE.BoxHelper(block));
+      city.add(block);
+      // city.add(new THREE.BoxHelper(block));
     });
+    objects.push(city);
 
     return objects;
   };
 
   private createHouseBlock(
-    centerPosition: THREE.Vector3,
-    houseMeshes: Map<string, THREE.Object3D<THREE.Event>>,
+    blockPosition: THREE.Vector3,
     houseBlockNode: YogaNode
   ) {
     const houseBlock = new THREE.Group();
@@ -193,28 +204,28 @@ export class Viewer {
         let house: THREE.Object3D;
 
         const noiseValue =
-          (noise2D(centerPosition.x + i, centerPosition.z + j) * 100 + 100) /
+          (noise2D(blockPosition.x + i, blockPosition.z + j) * 100 + 100) /
           100 /
           2;
 
         if (noiseValue < 1 / 9) {
-          house = houseMeshes.get("oneStoryHouse")!.clone();
+          house = this.houseMeshes.get("oneStoryHouse")!.clone();
         } else if (noiseValue >= 1 / 9 && noiseValue < 2 / 9) {
-          house = houseMeshes.get("oneStoryBHouse")!.clone();
+          house = this.houseMeshes.get("oneStoryBHouse")!.clone();
         } else if (noiseValue >= 2 / 9 && noiseValue < 3 / 9) {
-          house = houseMeshes.get("twoStoryHouse")!.clone();
+          house = this.houseMeshes.get("twoStoryHouse")!.clone();
         } else if (noiseValue >= 3 / 9 && noiseValue < 4 / 9) {
-          house = houseMeshes.get("twoStoryBHouse")!.clone();
+          house = this.houseMeshes.get("twoStoryBHouse")!.clone();
         } else if (noiseValue >= 4 / 9 && noiseValue < 5 / 9) {
-          house = houseMeshes.get("threeStoryHouse")!.clone();
+          house = this.houseMeshes.get("threeStoryHouse")!.clone();
         } else if (noiseValue >= 5 / 9 && noiseValue < 6 / 9) {
-          house = houseMeshes.get("threeStoryBHouse")!.clone();
+          house = this.houseMeshes.get("threeStoryBHouse")!.clone();
         } else if (noiseValue >= 6 / 9 && noiseValue < 7 / 9) {
-          house = houseMeshes.get("fourStoryHouse")!.clone();
+          house = this.houseMeshes.get("fourStoryHouse")!.clone();
         } else if (noiseValue >= 7 / 9 && noiseValue < 8 / 9) {
-          house = houseMeshes.get("fourStoryBHouse")!.clone();
+          house = this.houseMeshes.get("fourStoryBHouse")!.clone();
         } else {
-          house = houseMeshes.get("sixStoryHouse")!.clone();
+          house = this.houseMeshes.get("sixStoryHouse")!.clone();
         }
 
         const houseSize = new THREE.Box3()
@@ -224,10 +235,7 @@ export class Viewer {
         const houseNode = Yoga.Node.create();
         houseNode.setWidth(houseSize.x * 1_000_000);
         houseNode.setHeight(houseSize.z * 1_000_000);
-        if ((count + 2) % 3 === 0) {
-          houseNode.setMargin(Yoga.EDGE_LEFT, 1 * 1_000_000);
-          houseNode.setMargin(Yoga.EDGE_RIGHT, 1 * 1_000_000);
-        }
+        houseNode.setMargin(Yoga.EDGE_ALL, 0.3 * 1_000_000);
         houseBlockNode.insertChild(houseNode, count);
 
         houses.push({
@@ -253,7 +261,7 @@ export class Viewer {
     return houseBlock;
   }
 
-  private createPlane = async () => {
+  private loadTextures = async () => {
     const textureLoader = new THREE.TextureLoader();
 
     const wrapTexture = (texture: THREE.Texture) => {
@@ -263,46 +271,31 @@ export class Viewer {
       texture.repeat.set(this.planeGeometrySize, this.planeGeometrySize);
     };
 
-    const floorBase = await textureLoader.loadAsync(
-      (
-        await import("./assets/textures/hexTile/baseColor.png")
-      ).default
-    );
-    wrapTexture(floorBase);
+    const floorTextureUrls = [
+      ["map", "baseColor"],
+      ["aoMap", "ambientOcclusion"],
+      ["displacementMap", "height"],
+      ["normalMap", "normal"],
+      ["roughnessMap", "roughness"],
+    ];
 
-    const floorAo = await textureLoader.loadAsync(
-      (
-        await import("./assets/textures/hexTile/ambientOcclusion.png")
-      ).default
-    );
-    wrapTexture(floorAo);
+    for (const [name, fileName] of floorTextureUrls) {
+      const texture = await textureLoader.loadAsync(
+        (
+          await import(`./assets/textures/hexTile/${fileName}.png`)
+        ).default
+      );
+      wrapTexture(texture);
+      this.floorTextures.set(name, texture);
+    }
+  };
 
-    const floorHeight = await textureLoader.loadAsync(
-      (
-        await import("./assets/textures/hexTile/height.png")
-      ).default
-    );
-    wrapTexture(floorHeight);
-
-    const floorNormal = await textureLoader.loadAsync(
-      (
-        await import("./assets/textures/hexTile/normal.png")
-      ).default
-    );
-    wrapTexture(floorNormal);
-
-    const floorRoughness = await textureLoader.loadAsync(
-      (
-        await import("./assets/textures/hexTile/roughness.png")
-      ).default
-    );
-    wrapTexture(floorRoughness);
-
+  private createPlane = (position: THREE.Vector3) => {
     const planeMaterial = new THREE.MeshStandardMaterial({
-      map: floorBase,
-      aoMap: floorAo,
-      roughnessMap: floorRoughness,
-      normalMap: floorNormal,
+      map: this.floorTextures.get("map"),
+      aoMap: this.floorTextures.get("aoMap"),
+      roughnessMap: this.floorTextures.get("roughnessMap"),
+      normalMap: this.floorTextures.get("normalMap"),
     });
 
     const plane = new THREE.Mesh(
@@ -310,7 +303,7 @@ export class Viewer {
       planeMaterial
     );
     plane.rotation.x = -Math.PI / 2;
-    plane.position.set(0, -0.02, 0);
+    plane.position.set(position.x, -0.02, position.z);
     return plane;
   };
 
@@ -374,17 +367,19 @@ export class Viewer {
   };
 
   private init = async () => {
-    const objects = await this.createObjects();
-    const plane = await this.createPlane();
+    await this.loadMeshes();
+    await this.loadTextures();
     const lights = this.createLights();
 
-    this.scene.add(...objects, plane, ...lights);
+    this.scene.add(...lights);
 
     this.addEvents();
   };
 
   private addEvents = () => {
     const resize$ = fromEvent(window, "resize");
+
+    // TODO: add create objects from center thresholds logic here
     this.topDownControls.translate.$.pipe(
       map((vector) => ({
         x: vector.x,
@@ -395,6 +390,12 @@ export class Viewer {
         return prev.x === curr.x && prev.y === curr.y && prev.z === curr.z;
       })
     ).subscribe();
+
+    const currentPosition = this.ortho.position
+      .clone()
+      .subScalar(this.cameraOffsetScalar);
+
+    this.scene.add(...this.createObjects(currentPosition));
 
     this.subscriptions.push(resize$.subscribe(this.resizeCanvas));
   };
