@@ -184,7 +184,9 @@ export class City extends ObjectNode {
       houseBlock.position.z += 1.2;
 
       this.add(houseBlock);
-      this.add(new BoxHelper(houseBlock));
+      if (viewer.debug) {
+        this.add(new BoxHelper(houseBlock));
+      }
     });
   };
 

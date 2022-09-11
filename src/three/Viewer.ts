@@ -34,7 +34,7 @@ export class Viewer {
 
   private gui?: dat.GUI;
 
-  public debug = true;
+  public debug = false;
 
   public noise2D = createNoise2D();
 
@@ -71,6 +71,8 @@ export class Viewer {
     this.planeGeometrySize =
       this.numHouseBlocks * this.houseBlockSize +
       this.numHouseBlocks * this.houseMargin * 2;
+
+    this.debug = localStorage.getItem("debug") === "true";
 
     // debug GUI
     if (this.debug) {
