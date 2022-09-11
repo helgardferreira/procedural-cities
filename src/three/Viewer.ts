@@ -1,12 +1,26 @@
-import { fromEvent, Subscription } from "rxjs";
+import {
+  from,
+  fromEvent,
+  map,
+  mergeMap,
+  reduce,
+  shareReplay,
+  Subscription,
+  tap,
+  zip,
+} from "rxjs";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { TopDownControls } from "./controls/TopDownControls";
-import { createNoise2D } from "simplex-noise";
 import * as dat from "dat.gui";
 import { City } from "./City";
 import eventBus from "../EventBus";
 import { ChangeCameraEvent } from "../events/ChangeCameraEvent";
+import {
+  TextureLoadEvent,
+  TextureLoadEventData,
+} from "../events/TextureLoadEvent";
+import { GltfLoadEvent, GltfLoadEventData } from "../events/GltfLoadEvent";
 
 export class Viewer {
   private renderer: THREE.WebGLRenderer;
@@ -22,8 +36,6 @@ export class Viewer {
   private city?: City;
 
   private cameraOffsetScalar = 1000;
-  public houseMeshes: Map<string, THREE.Group> = new Map();
-  public floorTextures: Map<string, THREE.Texture> = new Map();
 
   private numHouseBlocks = 10;
   private houseBlockSize = 10;
@@ -35,8 +47,6 @@ export class Viewer {
   private gui?: dat.GUI;
 
   public debug = false;
-
-  public noise2D = createNoise2D();
 
   constructor() {
     this.renderer = new THREE.WebGLRenderer();
@@ -107,10 +117,20 @@ export class Viewer {
     );
   };
 
+  private createObjects = (initialCityPosition: THREE.Vector3) => {
+    const objects: THREE.Object3D[] = [];
+
+    this.city = new City(initialCityPosition);
+
+    objects.push(this.city);
+
+    return objects;
+  };
+
   private loadMeshes = async () => {
     const gltfLoader = new GLTFLoader();
 
-    const houseMeshUrls = [
+    const houseMeshUrls$ = from([
       ["oneStoryHouse", "1Story"],
       ["oneStoryBHouse", "1StoryB"],
       ["twoStoryHouse", "2Story"],
@@ -120,35 +140,26 @@ export class Viewer {
       ["fourStoryHouse", "4Story"],
       ["fourStoryBHouse", "4StoryB"],
       ["sixStoryHouse", "6Story"],
-    ];
+    ]);
 
-    for (const [name, fileName] of houseMeshUrls) {
-      this.houseMeshes.set(
-        name,
-        (
-          await gltfLoader.loadAsync(
-            (
-              await import(`./assets/models/${fileName}.glb`)
-            ).default
+    const gltfLoadEvent$ = houseMeshUrls$.pipe(
+      mergeMap(([name, fileName]) =>
+        zip(
+          from([name]),
+          from(import(`./assets/models/${fileName}.glb`)).pipe(
+            mergeMap(({ default: url }) => from(gltfLoader.loadAsync(url)))
           )
-        ).scene
-      );
-    }
-  };
-
-  private createObjects = (initialCityPosition: THREE.Vector3) => {
-    const objects: THREE.Object3D[] = [];
-
-    this.city = new City(
-      initialCityPosition,
-      this.floorTextures,
-      this.houseMeshes,
-      this.noise2D
+        )
+      ),
+      reduce((acc, [name, gltf]) => {
+        acc[name as keyof GltfLoadEventData] = gltf.scene;
+        return acc;
+      }, {} as GltfLoadEventData),
+      map((data) => new GltfLoadEvent(data)),
+      shareReplay(1)
     );
 
-    objects.push(this.city);
-
-    return objects;
+    eventBus.trigger(gltfLoadEvent$);
   };
 
   private loadTextures = async () => {
@@ -161,23 +172,33 @@ export class Viewer {
       texture.repeat.set(this.planeGeometrySize, this.planeGeometrySize);
     };
 
-    const floorTextureUrls = [
+    const floorTextureUrls$ = from([
       ["map", "baseColor"],
       ["aoMap", "ambientOcclusion"],
       ["displacementMap", "height"],
       ["normalMap", "normal"],
       ["roughnessMap", "roughness"],
-    ];
+    ]);
 
-    for (const [name, fileName] of floorTextureUrls) {
-      const texture = await textureLoader.loadAsync(
-        (
-          await import(`./assets/textures/hexTile/${fileName}.png`)
-        ).default
-      );
-      wrapTexture(texture);
-      this.floorTextures.set(name, texture);
-    }
+    const textureLoadEvent$ = floorTextureUrls$.pipe(
+      mergeMap(([name, fileName]) =>
+        zip(
+          from([name]),
+          from(import(`./assets/textures/hexTile/${fileName}.png`)).pipe(
+            mergeMap(({ default: url }) => from(textureLoader.loadAsync(url))),
+            tap((texture) => wrapTexture(texture))
+          )
+        )
+      ),
+      reduce((acc, [name, texture]) => {
+        acc[name as keyof TextureLoadEventData] = texture;
+        return acc;
+      }, {} as TextureLoadEventData),
+      map((data) => new TextureLoadEvent(data)),
+      shareReplay(1)
+    );
+
+    eventBus.trigger(textureLoadEvent$);
   };
 
   private createLights = () => {

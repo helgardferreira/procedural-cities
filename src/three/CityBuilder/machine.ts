@@ -100,12 +100,7 @@ const cityBuilderMachine =
             ) {
               // TODO: move city generation to observable and to job task queue
               console.log("spawning city!");
-              const newCity = new City(
-                newCityPosition,
-                viewer.floorTextures,
-                viewer.houseMeshes,
-                viewer.noise2D
-              );
+              const newCity = new City(newCityPosition);
 
               viewer.scene.add(newCity);
 

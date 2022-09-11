@@ -1,7 +1,6 @@
 import {
   Box3,
   BoxHelper,
-  Group,
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
@@ -9,7 +8,6 @@ import {
 } from "three";
 import Yoga from "@react-pdf/yoga";
 import { ObjectNode } from "./primitives";
-import { NoiseFunction2D } from "simplex-noise";
 import {
   distinct,
   distinctUntilChanged,
@@ -20,13 +18,19 @@ import {
   skip,
   Subscription,
   switchMap,
+  take,
 } from "rxjs";
 import eventBus from "../EventBus";
 import { ChangeCameraEvent } from "../events/ChangeCameraEvent";
 import viewer from "./Viewer";
-import { normalizeNoise } from "../utils/lib";
+import { normalized2DNoise } from "../utils/lib";
 import { CityEdgeViewEvent } from "../events/CityEdgeViewEvent";
 import cityBuilderService from "./CityBuilder/machine";
+import {
+  TextureLoadEvent,
+  TextureLoadEventData,
+} from "../events/TextureLoadEvent";
+import { GltfLoadEvent, GltfLoadEventData } from "../events/GltfLoadEvent";
 
 export enum CityEdge {
   North,
@@ -51,15 +55,11 @@ export class City extends ObjectNode {
   private floorMaterial: MeshStandardMaterial;
   private subscriptions: Subscription[] = [];
   private frustumableItems: FrustumableItem[] = [];
+  private houseMeshes?: GltfLoadEventData;
 
   public size: number;
 
-  constructor(
-    initialPosition: Vector3,
-    private floorTextures: Map<string, THREE.Texture>,
-    private houseMeshes: Map<string, Group> = new Map(),
-    private noise2D: NoiseFunction2D
-  ) {
+  constructor(initialPosition: Vector3) {
     super(
       undefined,
       undefined,
@@ -76,15 +76,9 @@ export class City extends ObjectNode {
 
     this.position.copy(initialPosition);
 
-    this.floorMaterial = new MeshStandardMaterial({
-      map: this.floorTextures.get("map"),
-      aoMap: this.floorTextures.get("aoMap"),
-      roughnessMap: this.floorTextures.get("roughnessMap"),
-      normalMap: this.floorTextures.get("normalMap"),
-    });
+    this.floorMaterial = new MeshStandardMaterial();
 
     this.createFloor();
-    this.createHouses();
     this.addEvents();
   }
 
@@ -128,15 +122,39 @@ export class City extends ObjectNode {
       skip(1)
     );
 
-    // eventBus.trigger(edgesInFrustum$);
     this.subscriptions.push(
       edgesInFrustum$.subscribe((event) =>
         cityBuilderService.send({
           type: "SPAWN_EDGE",
           data: event.data,
         })
-      )
+      ),
+      eventBus
+        .ofType<TextureLoadEvent>("textureLoad")
+        .pipe(take(1))
+        .subscribe(({ data }) => this.setTextures(data)),
+      eventBus
+        .ofType<GltfLoadEvent>("gltfLoad")
+        .pipe(take(1))
+        .subscribe(({ data }) => {
+          this.houseMeshes = data;
+          this.createHouses();
+        })
     );
+  };
+
+  private setTextures = (data: TextureLoadEventData) => {
+    if (data.map) this.floorMaterial.map = data.map;
+    if (data.aoMap) this.floorMaterial.aoMap = data.aoMap;
+    if (data.displacementMap) {
+      this.floorMaterial.displacementMap = data.displacementMap;
+      this.floorMaterial.displacementScale = 0.1;
+    }
+
+    if (data.metalnessMap) this.floorMaterial.metalnessMap = data.metalnessMap;
+    if (data.roughnessMap) this.floorMaterial.roughnessMap = data.roughnessMap;
+    if (data.normalMap) this.floorMaterial.normalMap = data.normalMap;
+    this.floorMaterial.needsUpdate = true;
   };
 
   private createHouses = () => {
@@ -246,45 +264,46 @@ export class City extends ObjectNode {
       for (let j = 0; j < 3; j++) {
         let house: ObjectNode;
 
-        const noiseValue = normalizeNoise(
-          this.noise2D((seedVector.x + i) * i, (seedVector.z + j) * j)
+        const noiseValue = normalized2DNoise(
+          (seedVector.x + i) * i,
+          (seedVector.z + j) * j
         );
 
         if (noiseValue < 1 / 9) {
           house = ObjectNode.fromObject(
-            this.houseMeshes.get("oneStoryHouse")!.clone()
+            this.houseMeshes!.oneStoryHouse.clone()
           );
         } else if (noiseValue >= 1 / 9 && noiseValue < 2 / 9) {
           house = ObjectNode.fromObject(
-            this.houseMeshes.get("oneStoryBHouse")!.clone()
+            this.houseMeshes!.oneStoryBHouse.clone()
           );
         } else if (noiseValue >= 2 / 9 && noiseValue < 3 / 9) {
           house = ObjectNode.fromObject(
-            this.houseMeshes.get("twoStoryHouse")!.clone()
+            this.houseMeshes!.twoStoryHouse.clone()
           );
         } else if (noiseValue >= 3 / 9 && noiseValue < 4 / 9) {
           house = ObjectNode.fromObject(
-            this.houseMeshes.get("twoStoryBHouse")!.clone()
+            this.houseMeshes!.twoStoryBHouse.clone()
           );
         } else if (noiseValue >= 4 / 9 && noiseValue < 5 / 9) {
           house = ObjectNode.fromObject(
-            this.houseMeshes.get("threeStoryHouse")!.clone()
+            this.houseMeshes!.threeStoryHouse.clone()
           );
         } else if (noiseValue >= 5 / 9 && noiseValue < 6 / 9) {
           house = ObjectNode.fromObject(
-            this.houseMeshes.get("threeStoryBHouse")!.clone()
+            this.houseMeshes!.threeStoryBHouse.clone()
           );
         } else if (noiseValue >= 6 / 9 && noiseValue < 7 / 9) {
           house = ObjectNode.fromObject(
-            this.houseMeshes.get("fourStoryHouse")!.clone()
+            this.houseMeshes!.fourStoryHouse.clone()
           );
         } else if (noiseValue >= 7 / 9 && noiseValue < 8 / 9) {
           house = ObjectNode.fromObject(
-            this.houseMeshes.get("fourStoryBHouse")!.clone()
+            this.houseMeshes!.fourStoryBHouse.clone()
           );
         } else {
           house = ObjectNode.fromObject(
-            this.houseMeshes.get("sixStoryHouse")!.clone()
+            this.houseMeshes!.sixStoryHouse.clone()
           );
         }
 
@@ -327,7 +346,7 @@ export class City extends ObjectNode {
       this.floorMaterial
     );
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -0.02;
+    floor.position.y = -0.04;
     this.add(floor);
   };
 
