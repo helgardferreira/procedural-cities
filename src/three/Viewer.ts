@@ -1,14 +1,4 @@
-import {
-  distinct,
-  distinctUntilChanged,
-  filter,
-  from,
-  fromEvent,
-  map,
-  reduce,
-  Subscription,
-  switchMap,
-} from "rxjs";
+import { fromEvent, Subscription } from "rxjs";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { TopDownControls } from "./controls/TopDownControls";
@@ -18,27 +8,9 @@ import { City } from "./City";
 import eventBus from "../EventBus";
 import { ChangeCameraEvent } from "../events/ChangeCameraEvent";
 
-const noise2D = createNoise2D();
-
-enum CityEdge {
-  North,
-  NorthWest,
-  West,
-  SouthWest,
-  South,
-  SouthEast,
-  East,
-  NorthEast,
-}
-
-interface FrustumableItem {
-  object: THREE.Object3D;
-  edge: CityEdge;
-}
-
 export class Viewer {
   private renderer: THREE.WebGLRenderer;
-  private scene: THREE.Scene;
+  public scene: THREE.Scene;
   private clock = new THREE.Clock();
 
   private topDownControls: TopDownControls;
@@ -50,8 +22,8 @@ export class Viewer {
   private city?: City;
 
   private cameraOffsetScalar = 1000;
-  private houseMeshes: Map<string, THREE.Group> = new Map();
-  private floorTextures: Map<string, THREE.Texture> = new Map();
+  public houseMeshes: Map<string, THREE.Group> = new Map();
+  public floorTextures: Map<string, THREE.Texture> = new Map();
 
   private numHouseBlocks = 10;
   private houseBlockSize = 10;
@@ -63,6 +35,8 @@ export class Viewer {
   private gui?: dat.GUI;
 
   public debug = true;
+
+  public noise2D = createNoise2D();
 
   constructor() {
     this.renderer = new THREE.WebGLRenderer();
@@ -167,7 +141,7 @@ export class Viewer {
       initialCityPosition,
       this.floorTextures,
       this.houseMeshes,
-      noise2D
+      this.noise2D
     );
 
     objects.push(this.city);

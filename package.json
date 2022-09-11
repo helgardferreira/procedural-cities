@@ -10,15 +10,17 @@
   },
   "dependencies": {
     "@react-pdf/yoga": "^3.0.0",
+    "@xstate/immer": "^0.3.1",
     "@xstate/react": "^3.0.1",
     "dat.gui": "^0.7.9",
+    "immer": "^9.0.6",
     "lodash": "^4.17.21",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "rxjs": "^7.5.6",
     "simplex-noise": "^4.0.0",
     "three": "^0.144.0",
-    "xstate": "^4.33.5"
+    "xstate": "^4.33.6"
   },
   "devDependencies": {
     "@types/dat.gui": "^0.7.7",

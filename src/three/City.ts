@@ -15,13 +15,18 @@ import {
   distinctUntilChanged,
   filter,
   from,
+  map,
   reduce,
+  skip,
   Subscription,
   switchMap,
 } from "rxjs";
 import eventBus from "../EventBus";
 import { ChangeCameraEvent } from "../events/ChangeCameraEvent";
 import viewer from "./Viewer";
+import { normalizeNoise } from "../utils/lib";
+import { CityEdgeViewEvent } from "../events/CityEdgeViewEvent";
+import cityBuilderService from "./CityBuilder/machine";
 
 export enum CityEdge {
   North,
@@ -40,15 +45,14 @@ export interface FrustumableItem {
 }
 
 export class City extends ObjectNode {
-  private floorSize: number;
   private numHouseBlocks = 10;
   private houseBlockSize = 10;
   private houseMargin = 1;
-
   private floorMaterial: MeshStandardMaterial;
   private subscriptions: Subscription[] = [];
+  private frustumableItems: FrustumableItem[] = [];
 
-  public frustumableItems: FrustumableItem[] = [];
+  public size: number;
 
   constructor(
     initialPosition: Vector3,
@@ -64,11 +68,11 @@ export class City extends ObjectNode {
       Yoga.FLEX_DIRECTION_ROW,
       Yoga.WRAP_WRAP
     );
-    this.floorSize =
+    this.size =
       this.numHouseBlocks * this.houseBlockSize +
       this.numHouseBlocks * this.houseMargin * 2;
-    this.node.setWidth(this.floorSize * 1_000_000);
-    this.node.setHeight(this.floorSize * 1_000_000);
+    this.node.setWidth(this.size * 1_000_000);
+    this.node.setHeight(this.size * 1_000_000);
 
     this.position.copy(initialPosition);
 
@@ -113,11 +117,26 @@ export class City extends ObjectNode {
           isSame = prevItem === curr[i];
         }
         return isSame;
-      })
+      }),
+      map(
+        (edges) =>
+          new CityEdgeViewEvent({
+            edges,
+            city: this,
+          })
+      ),
+      skip(1)
     );
 
-    // TODO: send message to city builder state machine
-    this.subscriptions.push(edgesInFrustum$.subscribe(console.log));
+    // eventBus.trigger(edgesInFrustum$);
+    this.subscriptions.push(
+      edgesInFrustum$.subscribe((event) =>
+        cityBuilderService.send({
+          type: "SPAWN_EDGE",
+          data: event.data,
+        })
+      )
+    );
   };
 
   private createHouses = () => {
@@ -152,17 +171,12 @@ export class City extends ObjectNode {
     const delta = performance.now() - start;
     console.log(delta);
 
-    this.node.calculateLayout(
-      this.floorSize,
-      this.floorSize,
-      Yoga.DIRECTION_LTR
-    );
+    this.node.calculateLayout(this.size, this.size, Yoga.DIRECTION_LTR);
 
     houseBlocks.forEach((houseBlock) => {
       const { left, top } = houseBlock.node.getComputedLayout();
       houseBlock.position
-        .copy(this.position)
-        .sub(new Vector3(this.floorSize / 2, 0, this.floorSize / 2))
+        .sub(new Vector3(this.size / 2, 0, this.size / 2))
         .add(new Vector3(left / 1_000_000, 0, top / 1_000_000));
 
       // Offset to account for house mesh bottom centroid
@@ -230,11 +244,9 @@ export class City extends ObjectNode {
       for (let j = 0; j < 3; j++) {
         let house: ObjectNode;
 
-        const noiseValue =
-          (this.noise2D((seedVector.x + i) * i, (seedVector.z + j) * j) * 100 +
-            100) /
-          100 /
-          2;
+        const noiseValue = normalizeNoise(
+          this.noise2D((seedVector.x + i) * i, (seedVector.z + j) * j)
+        );
 
         if (noiseValue < 1 / 9) {
           house = ObjectNode.fromObject(
@@ -309,7 +321,7 @@ export class City extends ObjectNode {
 
   private createFloor = () => {
     const floor = new Mesh(
-      new PlaneGeometry(this.floorSize, this.floorSize),
+      new PlaneGeometry(this.size, this.size),
       this.floorMaterial
     );
     floor.rotation.x = -Math.PI / 2;
