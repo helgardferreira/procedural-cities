@@ -1,11 +1,20 @@
 import { Vector2, Vector3, Matrix4, OrthographicCamera } from "three";
-import { fromEvent, mergeMap, Subscription, takeUntil } from "rxjs";
+import {
+  distinctUntilChanged,
+  fromEvent,
+  map,
+  mergeMap,
+  Subscription,
+  takeUntil,
+} from "rxjs";
 import {
   TopDownControlsInterpreter,
   topDownControlsMachineCreator,
 } from "./machine";
 import { interpret } from "xstate";
 import { ObservableVector3 } from "../../observables/ObservableVector3";
+import eventBus from "../../../EventBus";
+import { ChangeCameraEvent } from "../../../events/ChangeCameraEvent";
 
 export class TopDownControls {
   private subscriptions: Subscription[] = [];
@@ -42,7 +51,24 @@ export class TopDownControls {
 
     this.translate = new ObservableVector3(this.camera.position.clone());
     this.translate.$.subscribe((v) => this.camera.position.copy(v));
-    // this.translate$.subscribe(console.log);
+
+    const cameraCoordinates$ = this.translate.$.pipe(
+      map(
+        (vector) =>
+          new ChangeCameraEvent({
+            x: vector.x,
+            y: vector.y,
+            z: vector.z,
+          })
+      ),
+      distinctUntilChanged(
+        (prev, curr) =>
+          prev.data.x === curr.data.x &&
+          prev.data.y === curr.data.y &&
+          prev.data.z === curr.data.z
+      )
+    );
+    eventBus.trigger(cameraCoordinates$);
   }
 
   private addEvents = () => {
