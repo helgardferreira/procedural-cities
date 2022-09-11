@@ -42,6 +42,7 @@ export class TopDownControls {
     private camera: OrthographicCamera,
     private domElement: HTMLElement
   ) {
+    this.domElement.style.touchAction = "none";
     this.addEvents();
     this.position0 = this.camera.position.clone();
     this.zoom0 = this.camera.zoom;
