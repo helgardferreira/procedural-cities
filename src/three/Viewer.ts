@@ -1,4 +1,14 @@
-import { distinctUntilChanged, fromEvent, map, Subscription } from "rxjs";
+import {
+  distinct,
+  distinctUntilChanged,
+  filter,
+  from,
+  fromEvent,
+  map,
+  reduce,
+  Subscription,
+  switchMap,
+} from "rxjs";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { TopDownControls } from "./controls/TopDownControls";
@@ -8,27 +18,48 @@ import * as dat from "dat.gui";
 
 const noise2D = createNoise2D();
 
+enum CityEdge {
+  North,
+  NorthWest,
+  West,
+  SouthWest,
+  South,
+  SouthEast,
+  East,
+  NorthEast,
+}
+
+interface FrustumableItem {
+  object: THREE.Object3D;
+  edge: CityEdge;
+}
+
 export class Viewer {
   private renderer: THREE.WebGLRenderer;
   private scene: THREE.Scene;
-  private subscriptions: Subscription[] = [];
   private clock = new THREE.Clock();
+
   private topDownControls: TopDownControls;
-  // private camera: THREE.PerspectiveCamera;
   private ortho: THREE.OrthographicCamera;
+  private orthoHelper?: THREE.CameraHelper;
   private orthoSize = 20;
-  public debug = true;
-  private gui?: dat.GUI;
+  private orthoFrustum: THREE.Frustum;
+  private frustumableItems: FrustumableItem[] = [];
+
   private cameraOffsetScalar = 1000;
   private houseMeshes: Map<string, THREE.Object3D> = new Map();
   private floorTextures: Map<string, THREE.Texture> = new Map();
 
-  private numHouseBlocks = 5;
+  private numHouseBlocks = 10;
   private houseBlockSize = 10;
   private houseMargin = 1;
-  // private cityPadding = 5;
-
   private planeGeometrySize: number;
+
+  private subscriptions: Subscription[] = [];
+
+  private gui?: dat.GUI;
+
+  public debug = true;
 
   constructor() {
     this.renderer = new THREE.WebGLRenderer();
@@ -46,6 +77,13 @@ export class Viewer {
     );
     this.ortho.position.addScalar(this.cameraOffsetScalar);
     this.ortho.lookAt(0, 0, 0);
+    this.orthoFrustum = new THREE.Frustum();
+    this.updateOrthoFrustum();
+
+    if (this.debug) {
+      this.orthoHelper = new THREE.CameraHelper(this.ortho);
+      this.scene.add(this.orthoHelper);
+    }
 
     // Create and attach controls
     this.topDownControls = new TopDownControls(this.ortho, this.canvas);
@@ -73,13 +111,22 @@ export class Viewer {
     this.render();
   }
 
-  get canvas() {
+  public get canvas() {
     return this.renderer.domElement;
   }
 
   public get guiElement() {
     return this.gui?.domElement;
   }
+
+  private updateOrthoFrustum = () => {
+    this.orthoFrustum.setFromProjectionMatrix(
+      new THREE.Matrix4().multiplyMatrices(
+        this.ortho.projectionMatrix,
+        this.ortho.matrixWorldInverse
+      )
+    );
+  };
 
   private loadMeshes = async () => {
     const gltfLoader = new GLTFLoader();
@@ -134,8 +181,41 @@ export class Viewer {
 
     const houseBlocks: { node: YogaNode; block: THREE.Group }[] = [];
 
+    let count = 0;
     for (let i = 0; i < this.numHouseBlocks; i++) {
       for (let j = 0; j < this.numHouseBlocks; j++) {
+        let isHouseBlockFrustumable;
+        if (i === 0 || i === this.numHouseBlocks - 1) {
+          isHouseBlockFrustumable = true;
+        } else if (j === 0 || j === this.numHouseBlocks - 1) {
+          isHouseBlockFrustumable = true;
+        } else {
+          isHouseBlockFrustumable = false;
+        }
+
+        let houseBlockEdge: CityEdge;
+        if (i === 0) {
+          if (j === 0) {
+            houseBlockEdge = CityEdge.North;
+          } else if (j === this.numHouseBlocks - 1) {
+            houseBlockEdge = CityEdge.East;
+          } else {
+            houseBlockEdge = CityEdge.NorthEast;
+          }
+        } else if (i === this.numHouseBlocks - 1) {
+          if (j === 0) {
+            houseBlockEdge = CityEdge.West;
+          } else if (j === this.numHouseBlocks - 1) {
+            houseBlockEdge = CityEdge.South;
+          } else {
+            houseBlockEdge = CityEdge.SouthWest;
+          }
+        } else if (j === 0) {
+          houseBlockEdge = CityEdge.NorthWest;
+        } else if (j === this.numHouseBlocks - 1) {
+          houseBlockEdge = CityEdge.SouthEast;
+        }
+
         const houseBlockNode = Yoga.Node.create();
         houseBlockNode.setWidth(this.houseBlockSize * 1_000_000);
         houseBlockNode.setHeight(this.houseBlockSize * 1_000_000);
@@ -146,7 +226,7 @@ export class Viewer {
         // houseBlockNode.setAlignContent(Yoga.ALIGN_FLEX_START);
         houseBlockNode.setFlexDirection(Yoga.FLEX_DIRECTION_ROW);
         houseBlockNode.setFlexWrap(Yoga.WRAP_WRAP);
-        cityNode.insertChild(houseBlockNode, i);
+        cityNode.insertChild(houseBlockNode, count);
 
         const initialPosition = centerPosition
           .clone()
@@ -156,11 +236,18 @@ export class Viewer {
           initialPosition,
           houseBlockNode
         );
+        if (isHouseBlockFrustumable) {
+          this.frustumableItems.push({
+            object: houseBlock,
+            edge: houseBlockEdge!,
+          });
+        }
 
         houseBlocks.push({
           node: houseBlockNode,
           block: houseBlock,
         });
+        count += 1;
       }
     }
 
@@ -369,6 +456,10 @@ export class Viewer {
   private init = async () => {
     await this.loadMeshes();
     await this.loadTextures();
+
+    const currentPosition = new THREE.Vector3();
+    this.scene.add(...this.createObjects(currentPosition));
+
     const lights = this.createLights();
 
     this.scene.add(...lights);
@@ -379,8 +470,7 @@ export class Viewer {
   private addEvents = () => {
     const resize$ = fromEvent(window, "resize");
 
-    // TODO: add create objects from center thresholds logic here
-    this.topDownControls.translate.$.pipe(
+    const cameraCoordinates$ = this.topDownControls.translate.$.pipe(
       map((vector) => ({
         x: vector.x,
         y: vector.y,
@@ -389,15 +479,46 @@ export class Viewer {
       distinctUntilChanged((prev, curr) => {
         return prev.x === curr.x && prev.y === curr.y && prev.z === curr.z;
       })
-    ).subscribe();
+    );
 
-    const currentPosition = this.ortho.position
-      .clone()
-      .subScalar(this.cameraOffsetScalar);
+    const frustumableItems$ = from(this.frustumableItems);
 
-    this.scene.add(...this.createObjects(currentPosition));
+    const edgesInFrustum$ = cameraCoordinates$.pipe(
+      switchMap(() =>
+        frustumableItems$.pipe(
+          filter(({ object }) => {
+            const box = new THREE.Box3().setFromObject(object);
+            return this.orthoFrustum.intersectsBox(box);
+          }),
+          distinct(({ edge }) => edge),
+          reduce<FrustumableItem, CityEdge[]>((acc, curr) => {
+            return [...acc, curr.edge];
+          }, [])
+        )
+      ),
+      distinctUntilChanged((prev, curr) => {
+        if (prev.length !== curr.length) {
+          return false;
+        }
+        let isSame = true;
+        for (const [i, prevItem] of prev.entries()) {
+          if (!isSame) break;
+          isSame = prevItem === curr[i];
+        }
+        return isSame;
+      })
+    );
 
-    this.subscriptions.push(resize$.subscribe(this.resizeCanvas));
+    this.subscriptions.push(
+      resize$.subscribe(this.resizeCanvas),
+      cameraCoordinates$.subscribe(() => {
+        this.ortho.updateProjectionMatrix();
+        this.updateOrthoFrustum();
+      }),
+      edgesInFrustum$.subscribe((items) => {
+        console.log(items);
+      })
+    );
   };
 
   private resizeCanvas = () => {
@@ -408,6 +529,7 @@ export class Viewer {
     this.ortho.top = this.orthoSize / 2;
     this.ortho.bottom = this.orthoSize / -2;
     this.ortho.updateProjectionMatrix();
+    this.updateOrthoFrustum();
 
     // Update renderer
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -417,6 +539,10 @@ export class Viewer {
   private render = () => {
     this.renderer.render(this.scene, this.ortho);
     const delta = this.clock.getDelta();
+
+    if (this.debug && this.orthoHelper) {
+      this.orthoHelper.update();
+    }
 
     // required if controls.enableDamping or controls.autoRotate are set to true
     this.topDownControls.update();
