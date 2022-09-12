@@ -69,7 +69,7 @@ export class TopDownControls {
           prev.data.z === curr.data.z
       )
     );
-    eventBus.trigger(cameraCoordinates$);
+    eventBus.trigger({ changeCamera: cameraCoordinates$ });
   }
 
   private addEvents = () => {
