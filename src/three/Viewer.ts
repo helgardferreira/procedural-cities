@@ -21,6 +21,11 @@ import {
   TextureLoadEventData,
 } from "../events/TextureLoadEvent";
 import { GltfLoadEvent, GltfLoadEventData } from "../events/GltfLoadEvent";
+import {
+  CityBuilderInterpreter,
+  cityBuilderMachineCreator,
+} from "./CityBuilder/machine";
+import { interpret } from "xstate";
 
 export class Viewer {
   private renderer: THREE.WebGLRenderer;
@@ -47,6 +52,8 @@ export class Viewer {
   private gui?: dat.GUI;
 
   public debug = false;
+
+  public stateMachine: CityBuilderInterpreter;
 
   constructor() {
     this.renderer = new THREE.WebGLRenderer();
@@ -95,6 +102,9 @@ export class Viewer {
       document.body.appendChild(this.guiElement!);
     }
 
+    this.stateMachine = interpret(cityBuilderMachineCreator(this));
+    this.stateMachine.start();
+
     this.init();
 
     this.render();
@@ -115,16 +125,6 @@ export class Viewer {
         this.ortho.matrixWorldInverse
       )
     );
-  };
-
-  private createObjects = (initialCityPosition: THREE.Vector3) => {
-    const objects: THREE.Object3D[] = [];
-
-    this.city = new City(initialCityPosition);
-
-    objects.push(this.city);
-
-    return objects;
   };
 
   private loadMeshes = async () => {
@@ -263,9 +263,6 @@ export class Viewer {
   private init = async () => {
     await this.loadMeshes();
     await this.loadTextures();
-
-    const currentPosition = new THREE.Vector3();
-    this.scene.add(...this.createObjects(currentPosition));
 
     const lights = this.createLights();
 
