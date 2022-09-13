@@ -1,37 +1,47 @@
-import { Observable, ReplaySubject } from "rxjs";
-import { filter, mergeAll } from "rxjs/operators";
+import { BehaviorSubject, Observable, Subject } from "rxjs";
+import { filter, map, mergeAll, scan } from "rxjs/operators";
 import { EventLike } from "./utils/types";
 
-type Predicate = (item: EventLike) => boolean;
+type Predicate = (item: EventBusState) => boolean;
+
+interface EventBusState<T = any> {
+  [type: string]: Observable<EventLike<T>>;
+}
 
 export class EventBus {
-  private _eventSubject$: ReplaySubject<Observable<EventLike>>;
-  private _events$: Observable<EventLike>;
+  private _eventStore$: BehaviorSubject<EventBusState>;
+  private _eventSubject$: Subject<EventBusState>;
 
   constructor() {
-    this._eventSubject$ = new ReplaySubject();
-    this._events$ = this._eventSubject$.asObservable().pipe(mergeAll());
+    this._eventStore$ = new BehaviorSubject({});
+    this._eventSubject$ = new Subject();
+
+    this._eventSubject$
+      .pipe(scan((acc, item) => ({ ...acc, ...item }), {}))
+      .subscribe(this._eventStore$);
   }
 
-  public listen<T extends EventLike<K>, K = any>(
-    matcher?: Predicate
-  ): Observable<T> {
-    if (matcher) {
-      return (this._events$ as Observable<T>).pipe(
-        filter((eventItem) => matcher(eventItem))
-      );
-    } else {
-      return this._events$ as Observable<T>;
-    }
-  }
+  // public listen<T extends EventLike<K>, K = any>(
+  //   matcher?: Predicate
+  // ): Observable<T> {
+  //   if (matcher) {
+  //     return this._eventStore$.pipe(
+  //       filter((eventItem) => matcher(eventItem))
+  //     );
+  //   } else {
+  //     return this._eventStore$;
+  //   }
+  // }
 
   public ofType<T extends EventLike<K>, K = any>(key: string): Observable<T> {
-    return (this._events$ as Observable<T>).pipe(
-      filter((event) => event.type === key)
+    return this._eventStore$.pipe(
+      filter<EventBusState<K>>((eventItem) => !!eventItem[key]),
+      map((eventItem) => eventItem[key] as Observable<T>),
+      mergeAll()
     );
   }
 
-  public trigger(item: Observable<EventLike>) {
+  public trigger(item: EventBusState) {
     this._eventSubject$.next(item);
   }
 }

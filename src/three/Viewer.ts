@@ -159,7 +159,9 @@ export class Viewer {
       shareReplay(1)
     );
 
-    eventBus.trigger(gltfLoadEvent$);
+    eventBus.trigger({
+      gltfLoad: gltfLoadEvent$,
+    });
   };
 
   private loadTextures = async () => {
@@ -198,7 +200,7 @@ export class Viewer {
       shareReplay(1)
     );
 
-    eventBus.trigger(textureLoadEvent$);
+    eventBus.trigger({ textureLoad: textureLoadEvent$ });
   };
 
   private createLights = () => {
