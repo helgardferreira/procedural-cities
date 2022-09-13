@@ -1,7 +1,10 @@
 import { createMachine } from "xstate";
 import { assign } from "@xstate/immer";
 import { Vector3 } from "three";
-import { CityEdgeViewEventData } from "../../events/CityEdgeViewEvent";
+import {
+  CityEdgeViewEvent,
+  CityEdgeViewEventData,
+} from "../../events/CityEdgeViewEvent";
 import { SimpleInterpreter } from "../../utils/types";
 import { City, CityEdge } from "../City";
 import { Viewer } from "../Viewer";
@@ -37,6 +40,9 @@ export const cityBuilderMachineCreator = (viewer: Viewer) =>
       states: {
         active: {
           entry: "spawnCity",
+          invoke: {
+            src: "cityEdgeView$",
+          },
           on: {
             SPAWN_EDGE: {
               actions: "spawnCityOnEdges",
@@ -157,6 +163,13 @@ export const cityBuilderMachineCreator = (viewer: Viewer) =>
             endWith({
               type: "LOAD_ASSETS_COMPLETE",
             })
+          ),
+        cityEdgeView$: (context) =>
+          eventBus.ofType<CityEdgeViewEvent>("cityEdgeView").pipe(
+            map(({ data }) => ({
+              type: "SPAWN_EDGE",
+              data,
+            }))
           ),
       },
     }

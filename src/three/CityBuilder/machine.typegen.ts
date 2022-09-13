@@ -6,6 +6,7 @@ export interface Typegen0 {
     "xstate.init": { type: "xstate.init" };
   };
   invokeSrcNameMap: {
+    cityEdgeView$: "done.invoke.cityBuilder.active:invocation[0]";
     loadAssets$: "done.invoke.cityBuilder:invocation[0]";
   };
   missingImplementations: {
@@ -19,6 +20,7 @@ export interface Typegen0 {
     spawnCityOnEdges: "SPAWN_EDGE";
   };
   eventsCausingServices: {
+    cityEdgeView$: "LOAD_ASSETS_COMPLETE";
     loadAssets$: "xstate.init";
   };
   eventsCausingGuards: {};

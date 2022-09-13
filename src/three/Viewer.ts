@@ -13,7 +13,6 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { TopDownControls } from "./controls/TopDownControls";
 import * as dat from "dat.gui";
-import { City } from "./City";
 import eventBus from "../EventBus";
 import { ChangeCameraEvent } from "../events/ChangeCameraEvent";
 import {
@@ -28,7 +27,9 @@ import {
 import { interpret } from "xstate";
 
 export class Viewer {
+  private stateMachine: CityBuilderInterpreter;
   private renderer: THREE.WebGLRenderer;
+  // TODO: change scene access modifier to private
   public scene: THREE.Scene;
   private clock = new THREE.Clock();
 
@@ -38,7 +39,6 @@ export class Viewer {
   private orthoSize = 20;
   // TODO: change frustum access modifier to private
   public orthoFrustum: THREE.Frustum;
-  private city?: City;
 
   private cameraOffsetScalar = 1000;
 
@@ -52,8 +52,6 @@ export class Viewer {
   private gui?: dat.GUI;
 
   public debug = false;
-
-  public stateMachine: CityBuilderInterpreter;
 
   constructor() {
     this.renderer = new THREE.WebGLRenderer();

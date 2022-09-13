@@ -128,13 +128,11 @@ export class City extends ObjectNode {
       skip(1)
     );
 
+    eventBus.trigger({
+      cityEdgeView: edgesInFrustum$,
+    });
+
     this.subscriptions.push(
-      edgesInFrustum$.subscribe((event) =>
-        viewer.stateMachine.send({
-          type: "SPAWN_EDGE",
-          data: event.data,
-        })
-      ),
       eventBus
         .ofType<TextureLoadEvent>("textureLoad")
         .pipe(take(1))
