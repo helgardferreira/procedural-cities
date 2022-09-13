@@ -1,5 +1,6 @@
 import {
   Box3,
+  Box3Helper,
   BoxHelper,
   Mesh,
   MeshStandardMaterial,
@@ -25,7 +26,6 @@ import { ChangeCameraEvent } from "../events/ChangeCameraEvent";
 import viewer from "./Viewer";
 import { normalized2DNoise } from "../utils/lib";
 import { CityEdgeViewEvent } from "../events/CityEdgeViewEvent";
-import cityBuilderService from "./CityBuilder/machine";
 import {
   TextureLoadEvent,
   TextureLoadEventData,
@@ -91,7 +91,13 @@ export class City extends ObjectNode {
       switchMap(() =>
         frustumableItems$.pipe(
           filter(({ object }) => {
+            // N.B. it's important to update the world matrix
+            // to avoid the Box3 coordinates from being miscalculated leading
+            // to undefined behavior for the frustum detection logic
+            object.updateWorldMatrix(true, false);
             const box = new Box3().setFromObject(object);
+            // N.B. Box3Helper is only for debugging purposes
+            // viewer.scene.add(new Box3Helper(box));
             // TODO: deal with direct viewer dependency
             return viewer.orthoFrustum.intersectsBox(box);
           }),
@@ -124,7 +130,7 @@ export class City extends ObjectNode {
 
     this.subscriptions.push(
       edgesInFrustum$.subscribe((event) =>
-        cityBuilderService.send({
+        viewer.stateMachine.send({
           type: "SPAWN_EDGE",
           data: event.data,
         })
