@@ -5,7 +5,9 @@ export interface Typegen0 {
   internalEvents: {
     "xstate.init": { type: "xstate.init" };
   };
-  invokeSrcNameMap: {};
+  invokeSrcNameMap: {
+    loadAssets$: "done.invoke.cityBuilder:invocation[0]";
+  };
   missingImplementations: {
     actions: never;
     services: never;
@@ -13,11 +15,14 @@ export interface Typegen0 {
     delays: never;
   };
   eventsCausingActions: {
+    spawnCity: "LOAD_ASSETS_COMPLETE";
     spawnCityOnEdges: "SPAWN_EDGE";
   };
-  eventsCausingServices: {};
+  eventsCausingServices: {
+    loadAssets$: "xstate.init";
+  };
   eventsCausingGuards: {};
   eventsCausingDelays: {};
-  matchesStates: "active";
+  matchesStates: "active" | "inactive" | "loading";
   tags: never;
 }
