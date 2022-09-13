@@ -3,7 +3,6 @@ lockfileVersion: 5.4
 specifiers:
   '@react-pdf/yoga': ^3.0.0
   '@types/dat.gui': ^0.7.7
-  '@types/lodash': ^4.14.184
   '@types/react': ^18.0.17
   '@types/react-dom': ^18.0.6
   '@types/three': ^0.144.0
@@ -12,7 +11,6 @@ specifiers:
   '@xstate/react': ^3.0.1
   dat.gui: ^0.7.9
   immer: ^9.0.6
-  lodash: ^4.17.21
   react: ^18.2.0
   react-dom: ^18.2.0
   rxjs: ^7.5.6
@@ -28,7 +26,6 @@ dependencies:
   '@xstate/react': 3.0.1_wuh36jwbrf5hemtqgozb23tawi
   dat.gui: 0.7.9
   immer: 9.0.15
-  lodash: 4.17.21
   react: 18.2.0
   react-dom: 18.2.0_react@18.2.0
   rxjs: 7.5.6
@@ -38,7 +35,6 @@ dependencies:
 
 devDependencies:
   '@types/dat.gui': 0.7.7
-  '@types/lodash': 4.14.184
   '@types/react': 18.0.18
   '@types/react-dom': 18.0.6
   '@types/three': 0.144.0
@@ -370,10 +366,6 @@ packages:
 
   /@types/dat.gui/0.7.7:
     resolution: {integrity: sha512-CxLCme0He5Jk3uQwfO/fGZMyNhb/ypANzqX0yU9lviBQMlen5SOvQTBQ/Cd9x5mFlUAK5Tk8RgvTyLj1nYkz+w==}
-    dev: true
-
-  /@types/lodash/4.14.184:
-    resolution: {integrity: sha512-RoZphVtHbxPZizt4IcILciSWiC6dcn+eZ8oX9IWEYfDMcocdd42f7NPI6fQj+6zI8y4E0L7gu2pcZKLGTRaV9Q==}
     dev: true
 
   /@types/prop-types/15.7.5:
@@ -804,10 +796,6 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
     dev: true
-
-  /lodash/4.17.21:
-    resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
-    dev: false
 
   /loose-envify/1.4.0:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
