@@ -2,6 +2,7 @@ import {
   Box3,
   Box3Helper,
   BoxHelper,
+  Color,
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
@@ -10,27 +11,34 @@ import {
 import Yoga from "@react-pdf/yoga";
 import { ObjectNode } from "./primitives";
 import {
+  combineLatestWith,
   distinct,
   distinctUntilChanged,
   filter,
   from,
+  interval,
   map,
+  mergeMap,
+  Observable,
   reduce,
   skip,
+  Subject,
   Subscription,
   switchMap,
   take,
+  takeUntil,
 } from "rxjs";
 import eventBus from "../EventBus";
 import { ChangeCameraEvent } from "../events/ChangeCameraEvent";
 import viewer from "./Viewer";
-import { normalized2DNoise } from "../utils/lib";
+import { calculateOffsetCityPosition, normalized2DNoise } from "../utils/lib";
 import { CityEdgeViewEvent } from "../events/CityEdgeViewEvent";
 import {
   TextureLoadEvent,
   TextureLoadEventData,
 } from "../events/TextureLoadEvent";
 import { GltfLoadEvent, GltfLoadEventData } from "../events/GltfLoadEvent";
+import { DisposeCityEvent } from "../events/DisposeCityEvent";
 
 export enum CityEdge {
   North,
@@ -56,6 +64,7 @@ export class City extends ObjectNode {
   private subscriptions: Subscription[] = [];
   private frustumableItems: FrustumableItem[] = [];
   private houseMeshes?: GltfLoadEventData;
+  private destroy$: Subject<void>;
 
   public size: number;
 
@@ -77,6 +86,8 @@ export class City extends ObjectNode {
     this.position.copy(initialPosition);
 
     this.floorMaterial = new MeshStandardMaterial();
+
+    this.destroy$ = new Subject<void>();
 
     this.createFloor();
     this.addEvents();
@@ -125,11 +136,58 @@ export class City extends ObjectNode {
             city: this,
           })
       ),
-      skip(1)
+      takeUntil(this.destroy$)
     );
 
     eventBus.trigger({
       cityEdgeView: edgesInFrustum$,
+    });
+
+    // TODO: remove city from state machine when disposed
+    const checkDisposeCity$ = interval(1000).pipe(
+      combineLatestWith(eventBus.ofType<CityEdgeViewEvent>("cityEdgeView")),
+      map((streams) => {
+        const { city, edges } = streams[1].data;
+
+        const box = new Box3().setFromCenterAndSize(
+          this.position.clone(),
+          new Vector3(this.size, 0, this.size)
+        );
+        // const boxHelper = new Box3Helper(box);
+        // viewer.scene.add(boxHelper);
+
+        if (viewer.orthoFrustum.intersectsBox(box)) {
+          return false;
+        }
+
+        for (const edge of edges) {
+          const cityOffset = calculateOffsetCityPosition(
+            edge,
+            city.position,
+            city.size
+          );
+
+          const offsetBox = new Box3().setFromCenterAndSize(
+            cityOffset,
+            new Vector3(this.size, 0, this.size)
+          );
+          if (viewer.orthoFrustum.intersectsBox(offsetBox)) {
+            return false;
+          }
+        }
+
+        return true;
+      })
+    );
+
+    const disposeCity$: Observable<DisposeCityEvent> = checkDisposeCity$.pipe(
+      filter((shouldDispose) => shouldDispose),
+      map(() => new DisposeCityEvent({ city: this })),
+      takeUntil(this.destroy$)
+    );
+
+    eventBus.trigger({
+      disposeCity: disposeCity$,
     });
 
     this.subscriptions.push(
@@ -143,7 +201,12 @@ export class City extends ObjectNode {
         .subscribe(({ data }) => {
           this.houseMeshes = data;
           this.createHouses();
-        })
+        }),
+      checkDisposeCity$.subscribe((shouldDispose) => {
+        if (shouldDispose) {
+          this.dispose();
+        }
+      })
     );
   };
 
@@ -357,6 +420,7 @@ export class City extends ObjectNode {
   // TODO: work on dispose method
   public dispose = () => {
     this.floorMaterial.dispose();
+    this.destroy$.next();
     this.subscriptions.forEach((sub) => sub.unsubscribe());
   };
 }

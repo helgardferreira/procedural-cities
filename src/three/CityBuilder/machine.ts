@@ -10,6 +10,11 @@ import { City, CityEdge } from "../City";
 import { Viewer } from "../Viewer";
 import eventBus from "../../EventBus";
 import { endWith, map, merge, take } from "rxjs";
+import { calculateOffsetCityPosition } from "../../utils/lib";
+import {
+  DisposeCityEvent,
+  DisposeCityEventData,
+} from "../../events/DisposeCityEvent";
 
 interface CityBuilderMachineContext {
   cities: City[];
@@ -19,7 +24,8 @@ type CityBuilderMachineEvent =
   | { type: "LOAD_ASSETS" }
   | { type: "LOAD_ASSETS_COMPLETE" }
   | { type: "SPAWN" }
-  | { type: "SPAWN_EDGE"; data: CityEdgeViewEventData };
+  | { type: "SPAWN_EDGE"; data: CityEdgeViewEventData }
+  | { type: "DELETE"; data: DisposeCityEventData };
 
 export const cityBuilderMachineCreator = (viewer: Viewer) =>
   /** @xstate-layout N4IgpgJg5mDOIC5QGMCWAXAngIQK6oBsIwAnAOgENl1UA3MAYgGUAFAQQHUA5AfQFEAIgHE+iUAAcA9rAypJAOzEgAHogBsagMxkNAFgAMAVgCMAdgBMATn0AOS5YA0ITImMGy9+zdOXNbtfrmAL5BTmhYeITE5ASSFBCo8lAMADIA8mwCPGxMTHwAKkw8AMJpALIsKQWiSCBSMjQKSqoIusbGZKbG3ubmNsZq5qa6NmpOLgjmumo6Gho2Q4a6FjaaIWEYOPhEpGSJVDT0qRlZOXmFSvWyTbUtxob6ZHb6am691tYv44hTM3Pzi2WfTW6xA8kkxHgtXCWyiuwOdDAl2k10Ut3Uhm0mkMvjUq00700pm+kwJHk83l8-kCoJhkR2MTiCSSyIacjRoBamiMZEMpn6bys+k+mhJUw6Aw0hhxakMozetM29Oie3kCPorNRzUQunMYraZElsplcteusVEW20U1jQ5KlcNhJ3RCISAA */
@@ -40,12 +46,20 @@ export const cityBuilderMachineCreator = (viewer: Viewer) =>
       states: {
         active: {
           entry: "spawnCity",
-          invoke: {
-            src: "cityEdgeView$",
-          },
+          invoke: [
+            {
+              src: "cityEdgeView$",
+            },
+            {
+              src: "disposeCity$",
+            },
+          ],
           on: {
             SPAWN_EDGE: {
               actions: "spawnCityOnEdges",
+            },
+            DELETE: {
+              actions: "deleteCity",
             },
           },
         },
@@ -70,63 +84,11 @@ export const cityBuilderMachineCreator = (viewer: Viewer) =>
         spawnCityOnEdges: assign((context, { data }) => {
           const { city, edges } = data;
           edges.forEach((edge) => {
-            let newCityPosition: Vector3;
-
-            switch (edge) {
-              case CityEdge.NorthEast: {
-                newCityPosition = city.position
-                  .clone()
-                  .sub(new Vector3(0, 0, city.size));
-                break;
-              }
-              case CityEdge.NorthWest: {
-                newCityPosition = city.position
-                  .clone()
-                  .sub(new Vector3(city.size, 0, 0));
-                break;
-              }
-              case CityEdge.SouthWest: {
-                newCityPosition = city.position
-                  .clone()
-                  .add(new Vector3(0, 0, city.size));
-                break;
-              }
-              case CityEdge.SouthEast: {
-                newCityPosition = city.position
-                  .clone()
-                  .add(new Vector3(city.size, 0, 0));
-                break;
-              }
-              case CityEdge.North: {
-                newCityPosition = city.position
-                  .clone()
-                  .sub(new Vector3(city.size, 0, city.size));
-                break;
-              }
-              case CityEdge.West: {
-                newCityPosition = city.position
-                  .clone()
-                  .sub(new Vector3(city.size, 0, 0))
-                  .add(new Vector3(0, 0, city.size));
-                break;
-              }
-              case CityEdge.South: {
-                newCityPosition = city.position
-                  .clone()
-                  .add(new Vector3(city.size, 0, city.size));
-                break;
-              }
-              case CityEdge.East: {
-                newCityPosition = city.position
-                  .clone()
-                  .add(new Vector3(city.size, 0, 0))
-                  .sub(new Vector3(0, 0, city.size));
-                break;
-              }
-              default: {
-                newCityPosition = new Vector3();
-              }
-            }
+            const newCityPosition = calculateOffsetCityPosition(
+              edge,
+              city.position,
+              city.size
+            );
 
             if (
               !context.cities.some(
@@ -150,9 +112,17 @@ export const cityBuilderMachineCreator = (viewer: Viewer) =>
           viewer.scene.add(city);
           context.cities.push(city);
         }),
+        deleteCity: assign((context, { data: { city } }) => {
+          const newCities = context.cities.filter((c) => c !== city);
+
+          if (newCities.length !== context.cities.length) {
+            console.log("deleting city...");
+            context.cities = newCities;
+          }
+        }),
       },
       services: {
-        loadAssets$: (context) =>
+        loadAssets$: () =>
           merge(
             eventBus.ofType("textureLoad").pipe(take(1)),
             eventBus.ofType("gltfLoad").pipe(take(1))
@@ -164,10 +134,17 @@ export const cityBuilderMachineCreator = (viewer: Viewer) =>
               type: "LOAD_ASSETS_COMPLETE",
             })
           ),
-        cityEdgeView$: (context) =>
+        cityEdgeView$: () =>
           eventBus.ofType<CityEdgeViewEvent>("cityEdgeView").pipe(
             map(({ data }) => ({
               type: "SPAWN_EDGE",
+              data,
+            }))
+          ),
+        disposeCity$: () =>
+          eventBus.ofType<DisposeCityEvent>("disposeCity").pipe(
+            map(({ data }) => ({
+              type: "DELETE",
               data,
             }))
           ),

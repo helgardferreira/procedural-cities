@@ -25,6 +25,7 @@ import {
   cityBuilderMachineCreator,
 } from "./CityBuilder/machine";
 import { interpret } from "xstate";
+import { DisposeCityEvent } from "../events/DisposeCityEvent";
 
 export class Viewer {
   private stateMachine: CityBuilderInterpreter;
@@ -72,6 +73,8 @@ export class Viewer {
     this.orthoFrustum = new THREE.Frustum();
     this.updateOrthoFrustum();
 
+    this.debug = localStorage.getItem("debug") === "true";
+
     if (this.debug) {
       this.orthoHelper = new THREE.CameraHelper(this.ortho);
       this.scene.add(this.orthoHelper);
@@ -86,8 +89,6 @@ export class Viewer {
     this.planeGeometrySize =
       this.numHouseBlocks * this.houseBlockSize +
       this.numHouseBlocks * this.houseMargin * 2;
-
-    this.debug = localStorage.getItem("debug") === "true";
 
     // debug GUI
     if (this.debug) {
@@ -279,7 +280,12 @@ export class Viewer {
       eventBus.ofType<ChangeCameraEvent>("changeCamera").subscribe(() => {
         this.ortho.updateProjectionMatrix();
         this.updateOrthoFrustum();
-      })
+      }),
+      eventBus
+        .ofType<DisposeCityEvent>("disposeCity")
+        .subscribe(({ data: { city } }) => {
+          this.scene.remove(city);
+        })
     );
   };
 

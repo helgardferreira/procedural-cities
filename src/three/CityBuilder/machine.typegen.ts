@@ -7,6 +7,7 @@ export interface Typegen0 {
   };
   invokeSrcNameMap: {
     cityEdgeView$: "done.invoke.cityBuilder.active:invocation[0]";
+    disposeCity$: "done.invoke.cityBuilder.active:invocation[1]";
     loadAssets$: "done.invoke.cityBuilder:invocation[0]";
   };
   missingImplementations: {
@@ -16,11 +17,13 @@ export interface Typegen0 {
     delays: never;
   };
   eventsCausingActions: {
+    deleteCity: "DELETE";
     spawnCity: "LOAD_ASSETS_COMPLETE";
     spawnCityOnEdges: "SPAWN_EDGE";
   };
   eventsCausingServices: {
     cityEdgeView$: "LOAD_ASSETS_COMPLETE";
+    disposeCity$: "LOAD_ASSETS_COMPLETE";
     loadAssets$: "xstate.init";
   };
   eventsCausingGuards: {};
