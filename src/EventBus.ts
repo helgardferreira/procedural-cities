@@ -1,4 +1,4 @@
-import { BehaviorSubject, Observable, Subject } from "rxjs";
+import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
 import { filter, map, mergeAll, scan } from "rxjs/operators";
 import { EventLike } from "./utils/types";
 
@@ -17,7 +17,14 @@ export class EventBus {
     this._eventSubject$ = new Subject();
 
     this._eventSubject$
-      .pipe(scan((acc, item) => ({ ...acc, ...item }), {}))
+      .pipe(
+        scan<EventBusState, EventBusState>((acc, item) => {
+          Object.keys(item).forEach((key) => {
+            acc[key] = merge(item[key]);
+          });
+          return acc;
+        }, {})
+      )
       .subscribe(this._eventStore$);
   }
 
