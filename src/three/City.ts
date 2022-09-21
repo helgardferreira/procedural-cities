@@ -13,7 +13,6 @@ import {
   distinctUntilChanged,
   filter,
   from,
-  interval,
   map,
   Observable,
   reduce,
@@ -23,7 +22,6 @@ import {
   switchMap,
   take,
   takeUntil,
-  withLatestFrom,
 } from "rxjs";
 import eventBus from "../EventBus";
 import { ChangeCameraEvent } from "../events/ChangeCameraEvent";
@@ -133,51 +131,52 @@ export class City extends ObjectNode {
             edges,
             city: this,
           })
-      )
+      ),
+      shareReplay()
     );
 
     eventBus.trigger({
       cityEdgeView: edgesInFrustum$,
     });
 
-    // TODO: remove city from state machine when disposed
-    const checkDisposeCity$ = interval(1000).pipe(
-      takeUntil(this.destroy$),
-      withLatestFrom(eventBus.ofType<CityEdgeViewEvent>("cityEdgeView")),
-      map((streams) => {
-        const { city, edges } = streams[1].data;
+    const checkDisposeCity$ = eventBus
+      .ofType<CityEdgeViewEvent>("cityEdgeView")
+      .pipe(
+        takeUntil(this.destroy$),
+        map(({ data }) => {
+          const { city, edges } = data;
 
-        const box = new Box3().setFromCenterAndSize(
-          this.position.clone(),
-          new Vector3(this.size, 0, this.size)
-        );
-        // const boxHelper = new Box3Helper(box);
-        // viewer.scene.add(boxHelper);
-
-        if (viewer.orthoFrustum.intersectsBox(box)) {
-          return false;
-        }
-
-        for (const edge of edges) {
-          const cityOffset = calculateOffsetCityPosition(
-            edge,
-            city.position,
-            city.size
-          );
-
-          const offsetBox = new Box3().setFromCenterAndSize(
-            cityOffset,
+          const box = new Box3().setFromCenterAndSize(
+            this.position.clone(),
             new Vector3(this.size, 0, this.size)
           );
-          if (viewer.orthoFrustum.intersectsBox(offsetBox)) {
+          // const boxHelper = new Box3Helper(box);
+          // viewer.scene.add(boxHelper);
+
+          if (viewer.orthoFrustum.intersectsBox(box)) {
             return false;
           }
-        }
 
-        return true;
-      }),
-      shareReplay(1)
-    );
+          for (const edge of edges) {
+            const cityOffset = calculateOffsetCityPosition(
+              edge,
+              city.position,
+              city.size
+            );
+
+            const offsetBox = new Box3().setFromCenterAndSize(
+              cityOffset,
+              new Vector3(this.size, 0, this.size)
+            );
+            if (viewer.orthoFrustum.intersectsBox(offsetBox)) {
+              return false;
+            }
+          }
+
+          return true;
+        }),
+        shareReplay()
+      );
 
     const disposeCity$: Observable<DisposeCityEvent> = checkDisposeCity$.pipe(
       filter((shouldDispose) => shouldDispose),
