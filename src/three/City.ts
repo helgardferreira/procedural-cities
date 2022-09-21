@@ -1,8 +1,6 @@
 import {
   Box3,
-  Box3Helper,
   BoxHelper,
-  Color,
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
@@ -11,22 +9,21 @@ import {
 import Yoga from "@react-pdf/yoga";
 import { ObjectNode } from "./primitives";
 import {
-  combineLatestWith,
   distinct,
   distinctUntilChanged,
   filter,
   from,
   interval,
   map,
-  mergeMap,
   Observable,
   reduce,
-  skip,
+  shareReplay,
   Subject,
   Subscription,
   switchMap,
   take,
   takeUntil,
+  withLatestFrom,
 } from "rxjs";
 import eventBus from "../EventBus";
 import { ChangeCameraEvent } from "../events/ChangeCameraEvent";
@@ -99,6 +96,7 @@ export class City extends ObjectNode {
       eventBus.ofType<ChangeCameraEvent>("changeCamera");
 
     const edgesInFrustum$ = cameraCoordinates$.pipe(
+      takeUntil(this.destroy$),
       switchMap(() =>
         frustumableItems$.pipe(
           filter(({ object }) => {
@@ -135,8 +133,7 @@ export class City extends ObjectNode {
             edges,
             city: this,
           })
-      ),
-      takeUntil(this.destroy$)
+      )
     );
 
     eventBus.trigger({
@@ -145,7 +142,8 @@ export class City extends ObjectNode {
 
     // TODO: remove city from state machine when disposed
     const checkDisposeCity$ = interval(1000).pipe(
-      combineLatestWith(eventBus.ofType<CityEdgeViewEvent>("cityEdgeView")),
+      takeUntil(this.destroy$),
+      withLatestFrom(eventBus.ofType<CityEdgeViewEvent>("cityEdgeView")),
       map((streams) => {
         const { city, edges } = streams[1].data;
 
@@ -177,13 +175,13 @@ export class City extends ObjectNode {
         }
 
         return true;
-      })
+      }),
+      shareReplay(1)
     );
 
     const disposeCity$: Observable<DisposeCityEvent> = checkDisposeCity$.pipe(
       filter((shouldDispose) => shouldDispose),
-      map(() => new DisposeCityEvent({ city: this })),
-      takeUntil(this.destroy$)
+      map(() => new DisposeCityEvent({ city: this }))
     );
 
     eventBus.trigger({

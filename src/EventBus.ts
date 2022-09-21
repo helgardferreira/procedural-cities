@@ -4,8 +4,8 @@ import { EventLike } from "./utils/types";
 
 type Predicate = (item: EventBusState) => boolean;
 
-interface EventBusState<T = any> {
-  [type: string]: Observable<EventLike<T>>;
+interface EventBusState<T extends EventLike<K> = EventLike, K = any> {
+  [type: string]: Observable<T>;
 }
 
 export class EventBus {
@@ -42,13 +42,13 @@ export class EventBus {
 
   public ofType<T extends EventLike<K>, K = any>(key: string): Observable<T> {
     return this._eventStore$.pipe(
-      filter<EventBusState<K>>((eventItem) => !!eventItem[key]),
+      filter((eventItem) => !!eventItem[key]),
       map((eventItem) => eventItem[key] as Observable<T>),
       mergeAll()
     );
   }
 
-  public trigger(item: EventBusState) {
+  public trigger<T extends EventLike<K>, K = any>(item: EventBusState<T>) {
     this._eventSubject$.next(item);
   }
 }

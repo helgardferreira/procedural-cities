@@ -4,7 +4,6 @@ import {
   fromEvent,
   map,
   mergeMap,
-  shareReplay,
   Subscription,
   takeUntil,
 } from "rxjs";
@@ -68,8 +67,7 @@ export class TopDownControls {
           prev.data.x === curr.data.x &&
           prev.data.y === curr.data.y &&
           prev.data.z === curr.data.z
-      ),
-      shareReplay(1)
+      )
     );
     eventBus.trigger({ changeCamera: cameraCoordinates$ });
   }
