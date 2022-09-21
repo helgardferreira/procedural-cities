@@ -97,12 +97,8 @@ export const cityBuilderMachineCreator = (viewer: Viewer) =>
                   newCityPosition.toArray().toString()
               )
             ) {
-              // TODO: move city generation to observable and to job task queue
-              console.log("spawning city!");
               const newCity = new City(newCityPosition);
-
               viewer.scene.add(newCity);
-
               context.cities.push(newCity);
             }
           });
@@ -116,7 +112,6 @@ export const cityBuilderMachineCreator = (viewer: Viewer) =>
           const newCities = context.cities.filter((c) => c !== city);
 
           if (newCities.length !== context.cities.length) {
-            console.log("deleting city...");
             context.cities = newCities;
           }
         }),

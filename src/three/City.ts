@@ -84,8 +84,10 @@ export class City extends ObjectNode {
 
     this.destroy$ = new Subject<void>();
 
-    this.createFloor();
-    this.addEvents();
+    queueMicrotask(() => {
+      this.createFloor();
+      this.addEvents();
+    });
   }
 
   private addEvents = () => {
@@ -226,7 +228,6 @@ export class City extends ObjectNode {
 
     let count = 0;
 
-    const start = performance.now();
     for (let i = 0; i < this.numHouseBlocks; i++) {
       for (let j = 0; j < this.numHouseBlocks; j++) {
         const isHouseBlockFrustumable = this.determineIfFrustumable(i, j);
@@ -250,8 +251,6 @@ export class City extends ObjectNode {
         count += 1;
       }
     }
-    const delta = performance.now() - start;
-    console.log(delta);
 
     this.node.calculateLayout(this.size, this.size, Yoga.DIRECTION_LTR);
 
