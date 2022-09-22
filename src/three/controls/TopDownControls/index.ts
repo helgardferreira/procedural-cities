@@ -1,4 +1,4 @@
-import { Vector2, Vector3, Matrix4, OrthographicCamera } from "three";
+import { Vector2, Vector3, Matrix4, OrthographicCamera, Frustum } from "three";
 import {
   distinctUntilChanged,
   fromEvent,
@@ -40,7 +40,8 @@ export class TopDownControls {
 
   constructor(
     private camera: OrthographicCamera,
-    private domElement: HTMLElement
+    private domElement: HTMLElement,
+    private frustum: Frustum
   ) {
     this.domElement.style.touchAction = "none";
     this.addEvents();
@@ -60,6 +61,7 @@ export class TopDownControls {
             x: vector.x,
             y: vector.y,
             z: vector.z,
+            cameraFrustum: this.frustum,
           })
       ),
       distinctUntilChanged(

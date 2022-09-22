@@ -1,6 +1,7 @@
 import {
   Box3,
   BoxHelper,
+  Frustum,
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
@@ -51,6 +52,11 @@ export interface FrustumableItem {
   edge: CityEdge;
 }
 
+interface EdgesWithFrustum {
+  cameraFrustum: Frustum;
+  edges: CityEdge[];
+}
+
 export class City extends ObjectNode {
   private numHouseBlocks = 10;
   private houseBlockSize = 10;
@@ -97,7 +103,7 @@ export class City extends ObjectNode {
 
     const edgesInFrustum$ = cameraCoordinates$.pipe(
       takeUntil(this.destroy$),
-      switchMap(() =>
+      switchMap(({ data: { cameraFrustum } }) =>
         frustumableItems$.pipe(
           filter(({ object }) => {
             // N.B. it's important to update the world matrix
@@ -108,30 +114,38 @@ export class City extends ObjectNode {
             // N.B. Box3Helper is only for debugging purposes
             // viewer.scene.add(new Box3Helper(box));
             // TODO: deal with direct viewer dependency
-            return viewer.orthoFrustum.intersectsBox(box);
+            return cameraFrustum.intersectsBox(box);
           }),
           distinct(({ edge }) => edge),
-          reduce<FrustumableItem, CityEdge[]>((acc, curr) => {
-            return [...acc, curr.edge];
-          }, [])
+          reduce<FrustumableItem, EdgesWithFrustum>(
+            (acc, curr) => {
+              acc.edges.push(curr.edge);
+              return acc;
+            },
+            {
+              cameraFrustum,
+              edges: [],
+            }
+          )
         )
       ),
-      distinctUntilChanged((prev, curr) => {
-        if (prev.length !== curr.length) {
+      distinctUntilChanged(({ edges: prevEdges }, { edges: currEdges }) => {
+        if (prevEdges.length !== currEdges.length) {
           return false;
         }
         let isSame = true;
-        for (const [i, prevItem] of prev.entries()) {
+        for (const [i, prevItem] of prevEdges.entries()) {
           if (!isSame) break;
-          isSame = prevItem === curr[i];
+          isSame = prevItem === currEdges[i];
         }
         return isSame;
       }),
       map(
-        (edges) =>
+        ({ edges, cameraFrustum }) =>
           new CityEdgeViewEvent({
             edges,
             city: this,
+            cameraFrustum,
           })
       ),
       shareReplay()
@@ -146,7 +160,7 @@ export class City extends ObjectNode {
       .pipe(
         takeUntil(this.destroy$),
         map(({ data }) => {
-          const { city, edges } = data;
+          const { city, edges, cameraFrustum } = data;
 
           const box = new Box3().setFromCenterAndSize(
             this.position.clone(),
@@ -155,7 +169,7 @@ export class City extends ObjectNode {
           // const boxHelper = new Box3Helper(box);
           // viewer.scene.add(boxHelper);
 
-          if (viewer.orthoFrustum.intersectsBox(box)) {
+          if (cameraFrustum.intersectsBox(box)) {
             return false;
           }
 
@@ -170,7 +184,7 @@ export class City extends ObjectNode {
               cityOffset,
               new Vector3(this.size, 0, this.size)
             );
-            if (viewer.orthoFrustum.intersectsBox(offsetBox)) {
+            if (cameraFrustum.intersectsBox(offsetBox)) {
               return false;
             }
           }

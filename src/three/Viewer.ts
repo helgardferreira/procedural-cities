@@ -38,8 +38,7 @@ export class Viewer {
   private ortho: THREE.OrthographicCamera;
   private orthoHelper?: THREE.CameraHelper;
   private orthoSize = 20;
-  // TODO: change frustum access modifier to private
-  public orthoFrustum: THREE.Frustum;
+  private orthoFrustum: THREE.Frustum;
 
   private cameraOffsetScalar = 1000;
 
@@ -81,7 +80,11 @@ export class Viewer {
     }
 
     // Create and attach controls
-    this.topDownControls = new TopDownControls(this.ortho, this.canvas);
+    this.topDownControls = new TopDownControls(
+      this.ortho,
+      this.canvas,
+      this.orthoFrustum
+    );
 
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
