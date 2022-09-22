@@ -113,7 +113,6 @@ export class City extends ObjectNode {
             const box = new Box3().setFromObject(object);
             // N.B. Box3Helper is only for debugging purposes
             // viewer.scene.add(new Box3Helper(box));
-            // TODO: deal with direct viewer dependency
             return cameraFrustum.intersectsBox(box);
           }),
           distinct(({ edge }) => edge),
@@ -428,6 +427,7 @@ export class City extends ObjectNode {
   };
 
   // TODO: work on dispose method
+  // Check for memory leaks due to city creation and deletion...
   public dispose = () => {
     this.floorMaterial.dispose();
     this.destroy$.next();

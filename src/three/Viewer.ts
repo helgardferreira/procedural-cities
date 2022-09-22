@@ -30,7 +30,6 @@ import { DisposeCityEvent } from "../events/DisposeCityEvent";
 export class Viewer {
   private stateMachine: CityBuilderInterpreter;
   private renderer: THREE.WebGLRenderer;
-  // TODO: change scene access modifier to private
   public scene: THREE.Scene;
   private clock = new THREE.Clock();
 
