@@ -91,6 +91,7 @@ export class City extends ObjectNode {
     this.destroy$ = new Subject<void>();
 
     // Leads to better performance but less consistent city generation
+    // Need to think of a better way to build cities without blocking main UI thread
     /* queueMicrotask(() => {
       this.createFloor();
       this.addEvents();

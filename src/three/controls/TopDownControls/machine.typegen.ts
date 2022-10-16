@@ -7,7 +7,7 @@ export interface Typegen0 {
     "xstate.stop": { type: "xstate.stop" };
   };
   invokeSrcNameMap: {
-    checkUpdate$: "done.invoke.topDownControls.panning:invocation[0]";
+    checkUpdate$: "done.invoke.topDownControls.panning.idle:invocation[0]";
     update$: "done.invoke.topDownControls.panning.animating:invocation[0]";
   };
   missingImplementations: {
@@ -24,7 +24,7 @@ export interface Typegen0 {
     panStart: "PAN_MOVE";
   };
   eventsCausingServices: {
-    checkUpdate$: "xstate.init";
+    checkUpdate$: "PAN_END" | "RESET" | "xstate.init";
     update$: "ANIMATE";
   };
   eventsCausingGuards: {

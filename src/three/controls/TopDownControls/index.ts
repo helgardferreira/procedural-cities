@@ -8,10 +8,9 @@ import {
   takeUntil,
 } from "rxjs";
 import {
-  TopDownControlsInterpreter,
-  topDownControlsMachineCreator,
+  TopDownControlsService,
+  createTopDownControlsMachine,
 } from "./machine";
-import { interpret } from "xstate";
 import { ObservableVector3 } from "../../observables/ObservableVector3";
 import eventBus from "../../../EventBus";
 import { ChangeCameraEvent } from "../../../events/ChangeCameraEvent";
@@ -35,7 +34,7 @@ export class TopDownControls {
   private lastPosition = new Vector3();
   private EPS = 0.000001;
   private zoomChanged = false;
-  private stateMachine: TopDownControlsInterpreter;
+  private stateMachine: TopDownControlsService;
 
   private position0: Vector3;
   private zoom0: number;
@@ -62,7 +61,7 @@ export class TopDownControls {
     this.position0 = this.camera.position.clone();
     this.zoom0 = this.camera.zoom;
 
-    this.stateMachine = interpret(topDownControlsMachineCreator.apply(this));
+    this.stateMachine = createTopDownControlsMachine.apply(this);
     this.stateMachine.start();
 
     this.translate = new ObservableVector3(this.camera.position.clone());

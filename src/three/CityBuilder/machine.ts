@@ -26,7 +26,7 @@ type CityBuilderMachineEvent =
   | { type: "SPAWN_EDGE"; data: CityEdgeViewEventData }
   | { type: "DELETE"; data: DisposeCityEventData };
 
-export function cityBuilderMachineCreator(this: Viewer) {
+export function createCityBuilderMachine(this: Viewer) {
   /** @xstate-layout N4IgpgJg5mDOIC5QGMCWAXAngIQK6oBsIwAnAOgENl1UA3MAYgGUAFAQQHUA5AfQFEAIgHE+AbQAMAXUSgADgHtYGVPIB2MkAA9EANgAcAZjIBWACz7zAdmMAmS5ZsAaEJkQ2bATjIfLO43oBGPT0PHwDTSwBfSOc0LDxCYnIqGnoGAT4AGT4AFTEpDQUlGjUNbQRLAJsyAx1K02NxcRsA8T0dZ1cEAIMAsiaBm3F7AwNxW2jYjBx8IlIyAnkKCFRVKAZMgHk2AR42JiZcph4AYU2AWRZsvIlpJBAi5VL78tMbI3DDEJsdULqbYydRAGYxeDzGXo6UwBPziAwNUyTEBxGaJearFJ0RhbHZ7A5HW6FRRPdQvRABWxkSwhcQ6Ko6MbhdxAhAgsEQinNCIw2nRGIgVTyYjwe4ohJzZLULFE4oqUmgcr-KnBUJ6H6WUztFmjIzgyEBSzNOk2RH8sWzJILJYrNYykllYEUsjmPSWeE9QJqqHanTiZ0cqEwxrwsxI81o8gYqX0O0leVaRBvH1+hqQ6GwkOmqbxC2kWNyh0IAC0HRciBLfMiQA */
   return interpret(
     createMachine(

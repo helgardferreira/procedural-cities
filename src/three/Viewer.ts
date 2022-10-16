@@ -21,13 +21,13 @@ import {
 } from "../events/TextureLoadEvent";
 import { GltfLoadEvent, GltfLoadEventData } from "../events/GltfLoadEvent";
 import {
-  CityBuilderInterpreter,
-  cityBuilderMachineCreator,
+  CityBuilderService,
+  createCityBuilderMachine,
 } from "./CityBuilder/machine";
 import { DisposeCityEvent } from "../events/DisposeCityEvent";
 
 export class Viewer {
-  private stateMachine: CityBuilderInterpreter;
+  private stateMachine: CityBuilderService;
   private renderer: THREE.WebGLRenderer;
   public scene: THREE.Scene;
   private clock = new THREE.Clock();
@@ -104,7 +104,7 @@ export class Viewer {
       document.body.appendChild(this.guiElement!);
     }
 
-    this.stateMachine = cityBuilderMachineCreator.call(this);
+    this.stateMachine = createCityBuilderMachine.call(this);
     this.stateMachine.start();
 
     this.init();
