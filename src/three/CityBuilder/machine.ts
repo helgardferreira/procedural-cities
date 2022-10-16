@@ -1,5 +1,4 @@
-import { createMachine, interpret } from "xstate";
-import { assign } from "@xstate/immer";
+import { assign, createMachine, interpret } from "xstate";
 import { Vector3 } from "three";
 import {
   CityEdgeViewEvent,
@@ -82,8 +81,10 @@ export function cityBuilderMachineCreator(this: Viewer) {
       },
       {
         actions: {
+          // Can improve on spawnCityOnEdges algorithm efficiency
           spawnCityOnEdges: assign((context, { data }) => {
             const { city, edges } = data;
+            const newCities = [...context.cities];
             edges.forEach((edge) => {
               const newCityPosition = calculateOffsetCityPosition(
                 edge,
@@ -92,7 +93,7 @@ export function cityBuilderMachineCreator(this: Viewer) {
               );
 
               if (
-                !context.cities.some(
+                !newCities.some(
                   (c) =>
                     c.position.toArray().toString() ===
                     newCityPosition.toArray().toString()
@@ -100,22 +101,25 @@ export function cityBuilderMachineCreator(this: Viewer) {
               ) {
                 const newCity = new City(newCityPosition);
                 this.scene.add(newCity);
-                context.cities.push(newCity);
+                newCities.push(newCity);
               }
             });
+
+            return {
+              cities: newCities,
+            };
           }),
           spawnCity: assign((context) => {
             const city = new City(new Vector3(0, 0, 0));
             this.scene.add(city);
-            context.cities.push(city);
-          }),
-          deleteCity: assign((context, { data: { city } }) => {
-            const newCities = context.cities.filter((c) => c !== city);
 
-            if (newCities.length !== context.cities.length) {
-              context.cities = newCities;
-            }
+            return {
+              cities: context.cities.concat(city),
+            };
           }),
+          deleteCity: assign((context, { data: { city } }) => ({
+            cities: context.cities.filter((c) => c !== city),
+          })),
         },
         services: {
           loadAssets$: () =>
@@ -150,7 +154,7 @@ export function cityBuilderMachineCreator(this: Viewer) {
   );
 }
 
-export type CityBuilderInterpreter = SimpleInterpreter<
+export type CityBuilderService = SimpleInterpreter<
   CityBuilderMachineContext,
   CityBuilderMachineEvent
 >;
