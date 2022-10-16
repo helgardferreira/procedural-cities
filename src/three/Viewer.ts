@@ -24,7 +24,6 @@ import {
   CityBuilderInterpreter,
   cityBuilderMachineCreator,
 } from "./CityBuilder/machine";
-import { interpret } from "xstate";
 import { DisposeCityEvent } from "../events/DisposeCityEvent";
 
 export class Viewer {
@@ -50,7 +49,7 @@ export class Viewer {
 
   private gui?: dat.GUI;
 
-  public debug = false;
+  public debug: boolean;
 
   constructor() {
     this.renderer = new THREE.WebGLRenderer();
@@ -79,11 +78,13 @@ export class Viewer {
     }
 
     // Create and attach controls
-    this.topDownControls = new TopDownControls(
-      this.ortho,
-      this.canvas,
-      this.orthoFrustum
-    );
+    this.topDownControls = new TopDownControls({
+      camera: this.ortho,
+      domElement: this.canvas,
+      frustum: this.orthoFrustum,
+      animate: true,
+      debug: this.debug,
+    });
 
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -103,7 +104,7 @@ export class Viewer {
       document.body.appendChild(this.guiElement!);
     }
 
-    this.stateMachine = interpret(cityBuilderMachineCreator(this));
+    this.stateMachine = cityBuilderMachineCreator.call(this);
     this.stateMachine.start();
 
     this.init();

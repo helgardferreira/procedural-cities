@@ -16,6 +16,14 @@ import { ObservableVector3 } from "../../observables/ObservableVector3";
 import eventBus from "../../../EventBus";
 import { ChangeCameraEvent } from "../../../events/ChangeCameraEvent";
 
+interface TopDownControlsProps {
+  camera: OrthographicCamera;
+  domElement: HTMLElement;
+  frustum: Frustum;
+  animate?: boolean;
+  debug?: boolean;
+}
+
 export class TopDownControls {
   private subscriptions: Subscription[] = [];
   protected panStart = new Vector2();
@@ -38,11 +46,17 @@ export class TopDownControls {
   public panSpeed = 1.0;
   public translate: ObservableVector3;
 
-  constructor(
-    private camera: OrthographicCamera,
-    private domElement: HTMLElement,
-    private frustum: Frustum
-  ) {
+  private camera: OrthographicCamera;
+  private domElement: HTMLElement;
+  private frustum: Frustum;
+  protected debug: boolean;
+
+  constructor(props: TopDownControlsProps) {
+    this.camera = props.camera;
+    this.domElement = props.domElement;
+    this.frustum = props.frustum;
+    this.debug = !!props.debug;
+
     this.domElement.style.touchAction = "none";
     this.addEvents();
     this.position0 = this.camera.position.clone();
