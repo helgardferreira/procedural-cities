@@ -90,10 +90,14 @@ export class City extends ObjectNode {
 
     this.destroy$ = new Subject<void>();
 
-    queueMicrotask(() => {
+    // Leads to better performance but less consistent city generation
+    /* queueMicrotask(() => {
       this.createFloor();
       this.addEvents();
-    });
+    }); */
+
+    this.createFloor();
+    this.addEvents();
   }
 
   private addEvents = () => {
