@@ -67,7 +67,7 @@ export class TopDownControls {
     this.translate = new ObservableVector3(this.camera.position.clone());
     this.translate.$.subscribe((v) => this.camera.position.copy(v));
 
-    const cameraCoordinates$ = this.translate.$.pipe(
+    const changeCamera$ = this.translate.$.pipe(
       map(
         (vector) =>
           new ChangeCameraEvent({
@@ -84,7 +84,7 @@ export class TopDownControls {
           prev.data.z === curr.data.z
       )
     );
-    eventBus.trigger({ changeCamera: cameraCoordinates$ });
+    eventBus.trigger({ changeCamera$ });
   }
 
   private addEvents = () => {

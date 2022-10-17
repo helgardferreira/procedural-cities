@@ -104,9 +104,9 @@ export class City extends ObjectNode {
   private addEvents = () => {
     const frustumableItems$ = from(this.frustumableItems);
     const cameraCoordinates$ =
-      eventBus.ofType<ChangeCameraEvent>("changeCamera");
+      eventBus.ofType<ChangeCameraEvent>("changeCamera$");
 
-    const edgesInFrustum$ = cameraCoordinates$.pipe(
+    const cityEdgeView$ = cameraCoordinates$.pipe(
       takeUntil(this.destroy$),
       switchMap(({ data: { cameraFrustum } }) =>
         frustumableItems$.pipe(
@@ -155,12 +155,10 @@ export class City extends ObjectNode {
       shareReplay()
     );
 
-    eventBus.trigger({
-      cityEdgeView: edgesInFrustum$,
-    });
+    eventBus.trigger({ cityEdgeView$ });
 
     const checkDisposeCity$ = eventBus
-      .ofType<CityEdgeViewEvent>("cityEdgeView")
+      .ofType<CityEdgeViewEvent>("cityEdgeView$")
       .pipe(
         takeUntil(this.destroy$),
         map(({ data }) => {
@@ -203,17 +201,15 @@ export class City extends ObjectNode {
       map(() => new DisposeCityEvent({ city: this }))
     );
 
-    eventBus.trigger({
-      disposeCity: disposeCity$,
-    });
+    eventBus.trigger({ disposeCity$ });
 
     this.subscriptions.push(
       eventBus
-        .ofType<TextureLoadEvent>("textureLoad")
+        .ofType<TextureLoadEvent>("textureLoad$")
         .pipe(take(1))
         .subscribe(({ data }) => this.setTextures(data)),
       eventBus
-        .ofType<GltfLoadEvent>("gltfLoad")
+        .ofType<GltfLoadEvent>("gltfLoad$")
         .pipe(take(1))
         .subscribe(({ data }) => {
           this.houseMeshes = data;

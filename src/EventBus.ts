@@ -2,8 +2,6 @@ import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
 import { filter, map, mergeAll, scan } from "rxjs/operators";
 import { EventLike } from "./utils/types";
 
-type Predicate = (item: EventBusState) => boolean;
-
 interface EventBusState<T extends EventLike<K> = EventLike, K = any> {
   [type: string]: Observable<T>;
 }
@@ -27,18 +25,6 @@ export class EventBus {
       )
       .subscribe(this._eventStore$);
   }
-
-  // public listen<T extends EventLike<K>, K = any>(
-  //   matcher?: Predicate
-  // ): Observable<T> {
-  //   if (matcher) {
-  //     return this._eventStore$.pipe(
-  //       filter((eventItem) => matcher(eventItem))
-  //     );
-  //   } else {
-  //     return this._eventStore$;
-  //   }
-  // }
 
   public ofType<T extends EventLike<K>, K = any>(key: string): Observable<T> {
     return this._eventStore$.pipe(

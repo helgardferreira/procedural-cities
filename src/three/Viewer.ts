@@ -144,7 +144,7 @@ export class Viewer {
       ["sixStoryHouse", "6Story"],
     ]);
 
-    const gltfLoadEvent$ = houseMeshUrls$.pipe(
+    const gltfLoad$ = houseMeshUrls$.pipe(
       mergeMap(([name, fileName]) =>
         zip(
           from([name]),
@@ -161,9 +161,7 @@ export class Viewer {
       shareReplay(1)
     );
 
-    eventBus.trigger({
-      gltfLoad: gltfLoadEvent$,
-    });
+    eventBus.trigger({ gltfLoad$ });
   };
 
   private loadTextures = async () => {
@@ -184,7 +182,7 @@ export class Viewer {
       ["roughnessMap", "roughness"],
     ]);
 
-    const textureLoadEvent$ = floorTextureUrls$.pipe(
+    const textureLoad$ = floorTextureUrls$.pipe(
       mergeMap(([name, fileName]) =>
         zip(
           from([name]),
@@ -202,7 +200,7 @@ export class Viewer {
       shareReplay(1)
     );
 
-    eventBus.trigger({ textureLoad: textureLoadEvent$ });
+    eventBus.trigger({ textureLoad$ });
   };
 
   private createLights = () => {
@@ -280,12 +278,12 @@ export class Viewer {
 
     this.subscriptions.push(
       resize$.subscribe(this.resizeCanvas),
-      eventBus.ofType<ChangeCameraEvent>("changeCamera").subscribe(() => {
+      eventBus.ofType<ChangeCameraEvent>("changeCamera$").subscribe(() => {
         this.ortho.updateProjectionMatrix();
         this.updateOrthoFrustum();
       }),
       eventBus
-        .ofType<DisposeCityEvent>("disposeCity")
+        .ofType<DisposeCityEvent>("disposeCity$")
         .subscribe(({ data: { city } }) => {
           this.scene.remove(city);
         })

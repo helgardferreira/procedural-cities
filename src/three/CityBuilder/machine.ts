@@ -124,8 +124,8 @@ export function createCityBuilderMachine(this: Viewer) {
         services: {
           loadAssets$: () =>
             merge(
-              eventBus.ofType("textureLoad").pipe(take(1)),
-              eventBus.ofType("gltfLoad").pipe(take(1))
+              eventBus.ofType("textureLoad$").pipe(take(1)),
+              eventBus.ofType("gltfLoad$").pipe(take(1))
             ).pipe(
               map(() => ({
                 type: "LOAD_ASSETS",
@@ -135,14 +135,14 @@ export function createCityBuilderMachine(this: Viewer) {
               })
             ),
           cityEdgeView$: () =>
-            eventBus.ofType<CityEdgeViewEvent>("cityEdgeView").pipe(
+            eventBus.ofType<CityEdgeViewEvent>("cityEdgeView$").pipe(
               map(({ data }) => ({
                 type: "SPAWN_EDGE",
                 data,
               }))
             ),
           disposeCity$: () =>
-            eventBus.ofType<DisposeCityEvent>("disposeCity").pipe(
+            eventBus.ofType<DisposeCityEvent>("disposeCity$").pipe(
               map(({ data }) => ({
                 type: "DELETE",
                 data,
