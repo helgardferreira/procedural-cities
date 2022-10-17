@@ -1,7 +1,16 @@
-import { animationFrames, interval, map, scan } from "rxjs";
+import {
+  animationFrames,
+  EMPTY,
+  finalize,
+  interval,
+  map,
+  scan,
+  switchMap,
+} from "rxjs";
 import { Vector2 } from "three";
 import { createMachine, interpret } from "xstate";
 import { TopDownControls } from ".";
+import { fromDocumentVisibility } from "../../../utils/rxjs";
 import { SimpleInterpreter } from "../../../utils/types";
 
 interface TopDownControlsMachineContext {}
@@ -15,9 +24,8 @@ type TopDownControlsMachineEvent =
   | { type: "DOLLY_MOVE"; data: WheelEvent };
 
 export function createTopDownControlsMachine(this: TopDownControls) {
-  /** @xstate-layout N4IgpgJg5mDOIC5QBcD2AHAIqg7gOwGFU9kAnVAG1gDp0BDPPASzymroGNkmA3MAYgAKAQQByAfQCiozAG0ADAF1EodKlhNuxFSAAeiAKwB2ABzUAzAYCc5owDYbVgCwmATFYA0IAJ6JzD6hcnWxt7A3MARlcDAF8YrzQsXEJiMkoaekYWNk5uPiExcQBZAHkANUkFZSQQNQ0tPB19BHNXI2o7Iys7JwN5UJMrcK9fBFd5COoraZm7Ownoo1j4kETsfCIScipaBmZWdmYAWzpuVn4AVUFMYQAVSqUdOs0mbRrm8xNJ1yd5J3-5PJPtZLCNDD8On87OYrECrK4It04gkMOsUlt0rssucAEqSADKkluVSe6heb1AzSMrjBCDCgTsJlMfXk7i+dmRq1RyU2aR2mX2UH4YgAkkU7g9qqoyQ0mohqbT5gYpoyjK0In9XOYXJy1jzUtsMntsgUJKUKiSas9Ze95TSfH5foETMETIC3GrOrruRsDZiIJQKN4TZgSgAZMMATWK5UlpPqr0atrp9tG8LMTlVRjV0QMvQicRWeFQEDgOj1vox-ONByYEAoYHj5KTlPl8naBgiBjsCIiJhhrnctNs7SCIWhRi7riZ3qSlb5RuxOS4vEbVpliblYwiTgsIOhTisO6iP2H8mVY7cbSMC3kHJWFfRC6xgsOTBOZygTZtrbGWo6O5LHefznlEirWBYPQalqGpDCY94onOT6Gi+2Tfpuyang6CARBE5jUIChGDAsR6tLOaK8ihAYUEG2TsCufDoRSeh+D2UwurY5j+F8nyeNhQyuNQvaEZ8vxMghXJIZR-qBsGrBMS2LFjE4tL9lYDJMvB3adBqRjkfqVbwOuCbMc0AC0WGjBChGAtSVguoyzhOIWMRAA */
   return interpret(
-    /** @xstate-layout N4IgpgJg5mDOIC5QBcD2AHAIqg7gOwGFU9kAnVAG1gDp0BDPPASzymroGNkmA3MAYgAKAQQByAfQCiozAG0ADAF1EodKlhNuxFSAAeiAKwB2ABzUAzAYCc5gGxWAjJfPn55gDQgAnonMAmB2oAFhMgyyt5IyDbeRsAXzjPNCxcQmIyShp6RhY2Tm4+ITFxAFkAeQA1SQVlJBA1DS08HX0EfyNqWyMrW1CDLttbAwdbTx8EBwNzaitZ2amg4eH5IISkjGx8IhJyKloGZlZ2ZgBbOm5WfgBVQUxhABVqpR0GzSZtOta-PysZ+Vs-GFYoMgvI3GNEEFosFQuYgg4-N15AFbOY1iBkps0jtMvscpcAEqSADKknuNRe6jeH1ArSMfghCCMDg60RMg3s-gCIXRmNS2wye2yhyg-DEAEkSg8nrVVFSmi1EPTGQZjDNel0-Bq3IjeRt+eldlkDrkihJylUKXVXgrPkqGd5ED8-DCwrYwgYtX4TFY9SktobcRBKBQvKbMGUADKRgCapUqMspjXezTtTId4xMJnkwQ1RnMWZM3pZCUSIDwqAgcB0fIDOKFJqOTAgFDASepqdpSsi1CWMXM+ZZvRMjPMTld4SsPqnVlWZdr2MFxvxeS4vDb1vlKcVCG5FmsoO9+YBqIzTrVITC9NnzPMVi1fqxAqNeJFxyYZwuUHbtq7u4cQT7rOyImMeWr+CqQS-D07LHvIAEIiYj4GvWy4ij+25poCjLujMczzNY3xTL6876nWS7UMGFChrk7BrnwGE0novgAjMsKRCyDiRCsjIRIBATyCYDgOEW0SCQ4yHkS+VE0awjGdsxu5BIy3SBGygyuLEkzMpJi5GvJO4ALTYY6CDGXOCRAA */
+    /** @xstate-layout N4IgpgJg5mDOIC5QBcD2AHAIqg7gOwGFU9kAnVAG1gDp0BDPPASzymqYgrAGIBBAOQCSAWV4AVAKIBtAAwBdRKHSpYTZE2KKQAD0QB2AJwBmanr1GZAJksBWPTYCM9gwBoQAT0QAWGTeoObADYDYJkZAxsjI0CAXxi3NCxcQmIyShp6RhY2OgBjdQA3HgAFAQB9CX5MWQUkEGVVdU063QQvduobAA4bR0czBy89drdPBCMug2pAoJDjI0NwmVj4kETsfCIScipaBmZWajzCkvLhAHkANWl5LQa1DTwtVodjagNfLq8DWyMDL2io0Q1ks-j0ti+AK6Ri8XUGcQSGA2KW26T2WUODCYAFs6OpWNwAKrFTDiG61JQqB7NUCtYxdahRXqWCIyOFzIEIFkmQLgmwRFk2GRRPQItZI5JbNK7TIHKDcABKEgAyhIxDU7lSmk8WogALSBBymcxwwJmn6BKx6Tl2Lz+WZm4UOXwGUWrdaS1I7DL7bLcUr8MoXa4aur3bXPfWG40TBxm4KWS2Wa0eRDRGTTWZ6GTtGSvSwOMUezZetEQSgUdzZI75JhFbiYc4AGSbAE0g1dyZrGo9IwgDUazLH4xarZzzHp7cEugWfEYbLY4qs8KgIHAtMWUdKfRi2BwuN3qTraYg7CZhk5gjMvGbLJzY5mr3ZzIFvl0ixKS6iZb7MbWioeEa6ggXQZt0vQLK6rxeNy962I+IRfJYCywl4H5JF+27onKRzMLi+JQIBvbAT8oJ6F0XQzK+PxGImNj3q6U6uj8oEAmh7qflu3rYdkRE0jo+rOlMQ6muaiZjqmCAOFEYLibYgQsnorxuoiGFcWWFZVn+Jx8ceAnjKCfysfy5HdEpyycl8GavtJZoOLY9jJuhyJStx5YUJWvFhlqxEnv2QkxqJCZJimYyvgyATBGZ-LfMYzmet+8DeT2-GtHqASTiJcZiSFnIdE4tgGEVMI9OC75LkAA */
     createMachine(
       {
         tsTypes: {} as import("./machine.typegen").Typegen0,
@@ -34,6 +42,11 @@ export function createTopDownControlsMachine(this: TopDownControls) {
               idle: {
                 invoke: {
                   src: "checkUpdate$",
+                },
+                on: {
+                  ANIMATE: {
+                    target: "animating",
+                  },
                 },
               },
               active: {
@@ -65,9 +78,6 @@ export function createTopDownControlsMachine(this: TopDownControls) {
               RESET: {
                 target: ".idle",
               },
-              ANIMATE: {
-                target: ".animating",
-              },
               PAN_MOVE: {
                 target: ".active",
               },
@@ -76,13 +86,13 @@ export function createTopDownControlsMachine(this: TopDownControls) {
           dollying: {
             initial: "active",
             states: {
-              active: {},
-            },
-            on: {
-              DOLLY_MOVE: {
-                target: ".active",
-                cond: "inDebugMode",
-                actions: "dolly",
+              active: {
+                on: {
+                  DOLLY_MOVE: {
+                    cond: "inDebugMode",
+                    actions: "dolly",
+                  },
+                },
               },
             },
           },
@@ -129,21 +139,29 @@ export function createTopDownControlsMachine(this: TopDownControls) {
         },
         services: {
           update$: () =>
-            animationFrames().pipe(
-              map(({ timestamp }) => timestamp),
-              scan(
-                (acc, curr) => ({
-                  currentTimeStamp: curr,
-                  delta: acc.currentTimeStamp ? curr - acc.currentTimeStamp : 0,
-                }),
-                { currentTimeStamp: 0, delta: 0 }
-              ),
-              map(({ delta }) => ({
-                type: "UPDATE",
-                timeDelta: delta,
-              }))
+            // pause / resume animation based on document visibility
+            fromDocumentVisibility().pipe(
+              switchMap((isDocumentVisible) =>
+                isDocumentVisible
+                  ? animationFrames().pipe(
+                      map(({ timestamp }) => timestamp),
+                      scan(
+                        (acc, curr) => ({
+                          currentTimeStamp: curr,
+                          delta: acc.currentTimeStamp
+                            ? curr - acc.currentTimeStamp
+                            : 0,
+                        }),
+                        { currentTimeStamp: 0, delta: 0 }
+                      ),
+                      map(({ delta }) => ({
+                        type: "UPDATE",
+                        timeDelta: delta,
+                      }))
+                    )
+                  : EMPTY
+              )
             ),
-          // TODO: make checkUpdate$ more intelligent
           checkUpdate$: () =>
             interval(2000).pipe(map(() => ({ type: "ANIMATE" }))),
         },

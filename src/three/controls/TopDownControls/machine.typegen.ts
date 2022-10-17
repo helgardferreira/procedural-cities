@@ -20,7 +20,7 @@ export interface Typegen0 {
     animatePan: "UPDATE";
     dolly: "DOLLY_MOVE";
     pan: "PAN_MOVE";
-    panEnd: "ANIMATE" | "PAN_END" | "RESET" | "xstate.stop";
+    panEnd: "PAN_END" | "RESET" | "xstate.stop";
     panStart: "PAN_MOVE";
   };
   eventsCausingServices: {
